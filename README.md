@@ -35,13 +35,14 @@ graph TD
 
 ## Công nghệ được sử dụng
 
-| Thành phần | Công nghệ |
-| Language | Python 3.13 |
-| Framework | FastAPI (Backend), Next.js (Frontend) |
-| AI Orchestration | LangChain |
-| Vector DB | Qdrant |
-| Storage | MinIO (Object Storage), PostgreSQL (Metadata) |
-| Infrastructure | Docker, Nginx, Redis |
+| Thành phần       | Công nghệ                                     |
+| ---------------- | --------------------------------------------- |
+| Language         | Python 3.13                                   |
+| Framework        | FastAPI (Backend), Next.js (Frontend)         |
+| AI Orchestration | LangChain                                     |
+| Vector DB        | Qdrant |
+| Storage          | MinIO (Object Storage), PostgreSQL (Metadata) |
+| Infrastructure   | Docker, Nginx, Redis                          |
 
 ## Thiết lập và cài đặt
 
