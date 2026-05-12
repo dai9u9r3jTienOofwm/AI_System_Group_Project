@@ -1,0 +1,5 @@
+apps/api-server/.env
+apps/api-server/qdrant_data/
+
+__pycache__/
+*.pyc

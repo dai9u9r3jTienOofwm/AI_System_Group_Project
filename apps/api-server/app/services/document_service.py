@@ -1,38 +1,42 @@
 from sqlalchemy.orm import Session
 from fastapi import UploadFile
 
-from app.services import minio_client, postgres_client
-from app.workers.ingestion_tasks import ingest_document_task
+from app.services import minio_service, postgres_client
 from app.core.config import settings
-
+from app.workers.ingestion_tasks import process_document_task
+import socket
 
 class DocumentService:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, client: minio_service.MinioService):
         self.db = db
-        
+        self.client = client
     async def handle_upload(self, file: UploadFile, admin_id: int,document_id: str, object_name: str):
         # 1. Lưu file vào MinIO
-        file_url = await minio_client.upload(
-            file=file,
+        await self.client.upload_file(
             object_name=object_name,
-            content_type=file.content_type,
+            upload_file=file
         )
-        
+        print(f"Check document service: {type(self.db)}")
         #2. Lưu metadata vào Postgres
-        new_doc = postgres_client.create_document(document_id=document_id,
+        new_doc = postgres_client.create_document(db = self.db,
+            document_id=document_id,
             filename=file.filename,
             content_type=file.content_type,
+            file_size = file.size,
             minio_bucket=settings.MINIO_BUCKET,
             minio_object_name=object_name,
-            status="queued"
+            status="queued",
+            upload_id=admin_id 
         )
-        self.db.add(new_doc)
-        self.db.commit()
-        
         # 3. Gửi task cho Celery để xử lý nạp dữ liệu (OCR, Chunking, Embedding)
-        # process_document_task.delay(new_doc.id)
+        process_document_task.delay(new_doc.document_id)
         
-        return {"id": "200", "status": "queued"}  
+        return {"document_id": document_id,"filename": file.filename,"file_size": file.size, "status": "queued", "message":"Uploaded completed"}  
     
-    def get_list_documents(self, file: UploadFile):
-        return postgres_client.list_documents(self.db,file)  
+    def get_list_documents(self):
+        return postgres_client.get_list_documents(self.db)
+    
+    def get_document(self, document_id: str):
+        return postgres_client.get_document(db=self.db, document_id=document_id)
+    
+    
