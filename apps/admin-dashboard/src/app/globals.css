@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #060404;
   --foreground: #171717;
 }
 
@@ -15,7 +15,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
-    --foreground: #ededed;
+    --foreground: #0b0808;
   }
 }
 
@@ -23,4 +23,277 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+html {
+  font-size: 20px;
+}
+/* Tăng kích thước chữ chung cho toàn bộ con chữ bên trong hệ thống bảng Ant Design */
+.ant-table-wrapper, 
+.ant-table,
+.ant-table-cell,
+.ant-btn,
+.ant-tag {
+    font-size: 20px !important; 
+}
+
+/* ===== DARK THEME FOR ANT DESIGN COMPONENTS ===== */
+
+/* Card & Container */
+.ant-card {
+  background-color: #0b1220 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #e2e8f0 !important;
+}
+
+.ant-card-head {
+  background-color: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Table */
+.ant-table {
+  background-color: #0b1220 !important;
+  color: #e2e8f0 !important;
+}
+
+.ant-table-container table {
+  background-color: #0b1220 !important;
+}
+
+.ant-table-thead > tr > th {
+  background-color: #0f172a !important;
+  color: #e2e8f0 !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.ant-table-tbody > tr {
+  background-color: #0b1220 !important;
+}
+
+.ant-table-tbody > tr > td {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  color: #e2e8f0 !important;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background-color: rgba(56, 189, 248, 0.1) !important;
+}
+
+.ant-table-placeholder {
+  background-color: #0b1220 !important;
+}
+
+.ant-table-placeholder .ant-table-cell {
+  color: #94a3b8 !important;
+}
+
+/* Buttons */
+.ant-btn {
+  font-size: 20px !important;
+}
+
+.ant-btn-default,
+.ant-btn-text {
+  color: #e2e8f0 !important;
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.ant-btn-default:hover,
+.ant-btn-text:hover {
+  color: #e2e8f0 !important;
+  background-color: rgba(56, 189, 248, 0.15) !important;
+  border-color: rgba(56, 189, 248, 0.3) !important;
+}
+
+.ant-btn-primary {
+  background-color: #22d3ee !important;
+  border-color: #22d3ee !important;
+  color: #0f172a !important;
+}
+
+.ant-btn-primary:hover {
+  background-color: #06b6d4 !important;
+  border-color: #06b6d4 !important;
+}
+
+.ant-btn-dangerous {
+  color: #fca5a5 !important;
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  border-color: rgba(252, 165, 165, 0.3) !important;
+}
+
+.ant-btn-dangerous:hover {
+  color: #fecaca !important;
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+}
+
+/* Input & Select */
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-input-number,
+.ant-input-number-input {
+  background-color: rgba(15, 23, 42, 0.7) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.ant-input::placeholder,
+.ant-input-number-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+.ant-input:hover,
+.ant-input-number:hover {
+  border-color: rgba(255, 255, 255, 0.24) !important;
+}
+
+.ant-input:focus,
+.ant-input-number:focus {
+  border-color: #22d3ee !important;
+  background-color: rgba(15, 23, 42, 0.9) !important;
+}
+
+.ant-select-selector {
+  background-color: rgba(15, 23, 42, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.ant-select-selection-item {
+  color: #e2e8f0 !important;
+}
+
+.ant-select-dropdown {
+  background-color: #0b1220 !important;
+}
+
+.ant-select-item {
+  color: #e2e8f0 !important;
+}
+
+.ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background-color: rgba(56, 189, 248, 0.15) !important;
+}
+
+.ant-select-item-option-selected {
+  background-color: rgba(34, 211, 238, 0.2) !important;
+}
+
+/* Tag */
+.ant-tag {
+  background-color: rgba(148, 163, 184, 0.15) !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+  color: #e2e8f0 !important;
+}
+
+.ant-tag-green {
+  background-color: rgba(52, 211, 153, 0.15) !important;
+  border-color: rgba(52, 211, 153, 0.3) !important;
+  color: #86efac !important;
+}
+
+.ant-tag-blue {
+  background-color: rgba(56, 189, 248, 0.15) !important;
+  border-color: rgba(56, 189, 248, 0.3) !important;
+  color: #7dd3fc !important;
+}
+
+.ant-tag-red {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+  color: #fca5a5 !important;
+}
+
+/* Progress */
+.ant-progress-bar {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.ant-progress-bar-inner {
+  background-color: #22d3ee !important;
+}
+
+.ant-progress-text {
+  color: #e2e8f0 !important;
+}
+
+/* Upload */
+.ant-upload.ant-upload-select {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.ant-upload-drag-container {
+  color: #e2e8f0 !important;
+}
+
+/* Pagination */
+.ant-pagination-item,
+.ant-pagination-prev,
+.ant-pagination-next {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.ant-pagination-item a {
+  color: #e2e8f0 !important;
+}
+
+.ant-pagination-item-active {
+  background-color: #22d3ee !important;
+  border-color: #22d3ee !important;
+}
+
+.ant-pagination-item-active a {
+  color: #0f172a !important;
+}
+
+/* Modal */
+.ant-modal-content {
+  background-color: #0b1220 !important;
+}
+
+.ant-modal-header {
+  background-color: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.ant-modal-title {
+  color: #e2e8f0 !important;
+}
+
+.ant-modal-close-x {
+  color: #e2e8f0 !important;
+}
+
+/* Popconfirm */
+.ant-popover-inner {
+  background-color: #0b1220 !important;
+}
+
+.ant-popover-inner-content {
+  color: #e2e8f0 !important;
+}
+
+/* Form */
+.ant-form-item-label > label {
+  color: #e2e8f0 !important;
+}
+
+.ant-form-item-explain-error {
+  color: #fca5a5 !important;
+}
+
+/* Spin (Loading) */
+.ant-spin-text {
+  color: #e2e8f0 !important;
+}
+
+/* Message */
+.ant-message-notice-content {
+  background-color: #0b1220 !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
 }

@@ -1,3 +1,10 @@
+/**
+ * Home Page - Trang chủ (lúc vừa tải website, trước khi redirect)
+ * 
+ * Hiện tại chưa được sử dụng nhiều vì admin sẽ được redirect tới /login hoặc /dashboard
+ * có thể xóa hoặc dùng để welcome screen sau này
+ */
+
 import Image from "next/image";
 
 export default function Home() {
@@ -47,6 +54,7 @@ export default function Home() {
               alt="Vercel logomark"
               width={16}
               height={16}
+              style={{ width: 'auto', height: 'auto' }}
             />
             Deploy Now
           </a>
