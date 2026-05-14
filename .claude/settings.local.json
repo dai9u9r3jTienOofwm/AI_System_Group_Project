@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"c:\\\\DEV\\\\AI_RAG\\\\AI_System_Group_Project\\\\apps\\\\client-web\\\\\" -Recurse -Force | Select-Object FullName, PSIsContainer | Sort-Object FullName | ConvertTo-Json)",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\DEV\\\\AI_RAG\\\\AI_System_Group_Project\\\\apps\\\\client-web\" -Recurse -Force | Select-Object FullName | Sort-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"c:\\\\DEV\\\\AI_RAG\\\\AI_System_Group_Project\\\\apps\\\\client-web\\\\\", \"\"\\) })",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\DEV\\\\AI_RAG\\\\AI_System_Group_Project\\\\apps\\\\client-web\\\\src\" -Recurse | Select-Object FullName | ForEach-Object { $_.FullName.Replace\\(\"c:\\\\DEV\\\\AI_RAG\\\\AI_System_Group_Project\\\\apps\\\\client-web\\\\\", \"\"\\) } | Sort-Object)",
+      "Bash(pnpm dev *)",
+      "Bash(Remove-Item \"c:\\\\DEV\\\\AI_RAG\\\\AI_System_Group_Project\\\\apps\\\\client-web\\\\src\\\\middleware.ts\")",
+      "Bash(taskkill /F /IM node.exe)",
+      "PowerShell(Stop-Process -Name \"node\" -Force -ErrorAction SilentlyContinue)"
+    ]
+  }
+}
