@@ -1,52 +1,69 @@
-import { NextResponse } from 'next/server';
-import { SignJWT } from 'jose';
+/**
+ * API Route: POST /api/auth/login (DÀNH CHO CLIENT WEB)
+ * Tác dụng: Nhận email + password, gọi sang Python Backend kiểm tra PostgreSQL.
+ * Lưu session đơn giản bằng uuid4, không dùng JWT.
+ */
+import { NextRequest, NextResponse } from 'next/server';
 
-const CREDENTIALS: Record<string, { password: string; role: 'admin' | 'client' }> = {
-  [process.env.ADMIN_USERNAME ?? 'admin']: {
-    password: process.env.ADMIN_PASSWORD ?? 'admin123',
-    role: 'admin',
-  },
-  [process.env.CLIENT_USERNAME ?? 'user']: {
-    password: process.env.CLIENT_PASSWORD ?? 'user123',
-    role: 'client',
-  },
-};
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? 'your-secret-key-change-this'
-);
-
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { username, password } = await req.json();
+    const body = await req.json();
+    
+    // Lưu ý: Backend Python đang nhận vào là 'email'. 
+    // Nếu form của bạn gửi lên 'username', nhớ map lại giá trị cho đúng nhé.
+    const email = body.email || body.username; 
+    const password = body.password;
 
-    const user = CREDENTIALS[username as string];
-    if (!user || user.password !== password) {
+    // 1. Gọi sang Python Backend để xác thực
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const backendRes = await fetch(`${backendUrl}/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await backendRes.json();
+
+    // 2. Xử lý khi sai thông tin (Backend trả về lỗi)
+    if (!backendRes.ok || data.status !== 'success') {
       return NextResponse.json(
-        { error: 'Tài khoản hoặc mật khẩu không đúng.' },
+        { error: data.detail || 'Tài khoản hoặc mật khẩu không chính xác.' },
         { status: 401 }
       );
     }
 
-    const token = await new SignJWT({ userId: username, email: `${username}@system`, role: user.role })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setExpirationTime('8h')
-      .sign(JWT_SECRET);
+    // 3. Phân quyền: Ai cũng vào được Client Web
+    const userRole = data.is_admin ? 'admin' : 'client';
 
+    // 4. Lưu session dạng JSON thuần chứa uuid4 từ Backend
+    const sessionData = JSON.stringify({ id: data.id, role: userRole });
+    
+    const response = NextResponse.json({ 
+      success: true, 
+      userId: data.id,
+      role: userRole 
+    });
+    
+    // 5. Thiết lập Cookie (Giống cấu hình cũ của bạn nhưng lưu chuỗi session thay vì token)
     const cookieOpts = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax' as const,
-      maxAge: 60 * 60 * 8,
+      maxAge: 60 * 60 * 24, // 1 ngày
       path: '/',
     };
 
-    const response = NextResponse.json({ role: user.role });
-    response.cookies.set('auth_role', user.role, cookieOpts);
-    response.cookies.set('authToken', token, cookieOpts);
+    // Đặt cookie riêng cho Client Web
+    response.cookies.set('clientSession', sessionData, cookieOpts);
+    
+    // Nếu các component khác ở Frontend của bạn đang dựa vào cookie 'auth_role' để render giao diện,
+    // thì cứ set thêm một cái cookie phụ này cho chúng hoạt động bình thường
+    response.cookies.set('auth_role', userRole, cookieOpts);
 
     return response;
-  } catch {
-    return NextResponse.json({ error: 'Lỗi máy chủ.' }, { status: 500 });
+
+  } catch (error) {
+    console.error("Lỗi kết nối Backend:", error);
+    return NextResponse.json({ error: 'Lỗi máy chủ nội bộ.' }, { status: 500 });
   }
 }

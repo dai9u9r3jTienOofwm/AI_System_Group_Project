@@ -51,8 +51,8 @@ export default function GlobalSearch() {
           apiClient.getUsers(),
         ]);
 
-        const documents = (docsResponse.data?.documents || []) as SearchResults['documents'];
-        const users = (usersResponse.data || []) as SearchResults['users'];
+        const documents = (docsResponse?.documents || []) as SearchResults['documents'];
+        const users = (usersResponse || []) as SearchResults['users'];
         const q = trimmed.toLowerCase();
 
         if (!isCancelled) {

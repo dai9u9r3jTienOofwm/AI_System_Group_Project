@@ -1,23 +1,18 @@
 /**
- * Proxy Middleware - Kiểm tra token trước khi cho phép truy cập các trang
+ * Proxy Middleware - Kiểm tra session cookies trước khi cho phép truy cập
  * - Nếu chưa đăng nhập: chuyển hướng đến /login
- * - Nếu token hảng: chuyển hướng đến /login
- * - Nếu token hợp lệ: cho phép truy cập
+ * - Nếu session hợp lệ: cho phép truy cập
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'your-secret-key-change-this'
-);
 
 export async function proxy(request: NextRequest) {
-  const token = request.cookies.get('authToken')?.value;
+  const userId = request.cookies.get('userId')?.value;
+  const userRole = request.cookies.get('auth_role')?.value;
   const pathname = request.nextUrl.pathname;
 
   // Homepage - redirect based on login status
   if (pathname === '/') {
-    if (token) {
+    if (userId && userRole === 'admin') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
     return NextResponse.redirect(new URL('/login', request.url));
@@ -25,24 +20,18 @@ export async function proxy(request: NextRequest) {
 
   // Login page - if already logged in, go to dashboard
   if (pathname === '/login') {
-    if (token) {
+    if (userId && userRole === 'admin') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
     return NextResponse.next();
   }
 
-  // Protected routes - require token
+  // Protected routes - require valid admin session
   if (pathname.startsWith('/dashboard')) {
-    if (!token) {
+    if (!userId || userRole !== 'admin') {
       return NextResponse.redirect(new URL('/login', request.url));
     }
-
-    try {
-      await jwtVerify(token, JWT_SECRET);
-      return NextResponse.next();
-    } catch {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
+    return NextResponse.next();
   }
 
   return NextResponse.next();

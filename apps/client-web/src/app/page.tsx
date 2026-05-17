@@ -47,10 +47,17 @@ export default function ChatPage() {
   }, [activeId]);
 
   const handleLogout = async () => {
+    try {
     await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/login');
-    router.refresh();
-  };
+
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userRole');
+
+    window.location.href = '/login';
+  } catch (error) {
+    console.error('Lỗi khi đăng xuất:', error);
+  }
+};
 
   const handleFormSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();

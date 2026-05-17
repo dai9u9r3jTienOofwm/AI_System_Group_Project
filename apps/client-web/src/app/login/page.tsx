@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bot, Lock, User } from 'lucide-react';
+import { apiClient } from '@/lib/api-client';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -11,35 +12,57 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const handleSubmit = async (e: { preventDefault(): void }) => {
-    e.preventDefault();
-    if (!username.trim() || !password.trim()) return;
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!username.trim() || !password.trim()) return;
 
-    setIsLoading(true);
-    setError('');
+  setIsLoading(true);
+  setError('');
 
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username.trim(), password }),
-      });
+  try {
+    // Đóng gói dữ liệu từ form gửi sang cho Python
+    const values = { 
+      email: username.trim(), 
+      password: password 
+    };
 
-      const data = await res.json();
+    // 1. Gọi API đăng nhập bằng apiClient hướng sang Python Backend
+    const data = await apiClient.client.post('/v1/auth/login', values) as any;
 
-      if (!res.ok) {
-        setError(data.error ?? 'Đăng nhập thất bại.');
-        return;
-      }
+    // 2. ĐÃ SỬA: Check theo dữ liệu thực tế của Python trả về (dùng data.id thay vì token)
+    if (data.id) {
+      // Xác định role dựa vào cờ is_admin của Python
+      const userRole = data.is_admin ? 'admin' : 'client';
+      
+      // Lưu vào localStorage phục vụ cho Frontend nếu cần
+      localStorage.setItem('userId', data.id);
+      localStorage.setItem('userRole', userRole);
 
-      router.push(data.role === 'admin' ? '/admin' : '/');
-      router.refresh();
-    } catch {
-      setError('Không thể kết nối đến máy chủ.');
-    } finally {
-      setIsLoading(false);
+      // 🔥 SỬA CHÍ MẠNG Ở ĐÂY: Tạo một chuỗi Session đơn giản (Plain Text) chứa id và role
+      const sessionData = JSON.stringify({ id: data.id, role: userRole });
+
+      // Ném thẳng vào Cookie để file proxy.ts (Server-side) có thể bóc tách ra đọc được
+      // Mình set cả cookie gộp lẫn cookie lẻ cho chắc ăn, tùy thuộc vào việc proxy.ts của bạn đang gọi tên biến nào:
+      document.cookie = `userSession=${encodeURIComponent(sessionData)}; path=/; max-age=86400; SameSite=Lax;`;
+      document.cookie = `userId=${data.id}; path=/; max-age=86400; SameSite=Lax;`;
+      document.cookie = `auth_role=${userRole}; path=/; max-age=86400; SameSite=Lax;`;
     }
-  };
+
+    // 3. ĐÃ SỬA: Điều hướng dựa vào cờ data.is_admin (kiểu Boolean) của Python trả về
+    const targetPath = data.is_admin === true ? '/admin' : '/';
+    
+    // Thực hiện chuyển trang
+    router.push(targetPath);
+    router.refresh();
+
+  } catch (err: any) {
+    // Bắt lỗi chuẩn từ FastAPI dội về (Ví dụ: "Sai mật khẩu")
+    const errorMessage = err.response?.data?.detail || 'Sai tài khoản/mật khẩu hoặc máy chủ đang bảo trì.';
+    setError(errorMessage);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">

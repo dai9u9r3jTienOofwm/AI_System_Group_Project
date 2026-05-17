@@ -24,7 +24,7 @@ export default function DocumentsPage() {
     setLoading(true);
     try {
       const res = await apiClient.getIngestStatus();
-      setDocuments(res.data?.documents || []);
+      setDocuments(res?.documents || []);
     } catch {
       message.error('Failed to load documents');
     } finally {

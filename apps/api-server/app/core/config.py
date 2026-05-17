@@ -22,7 +22,10 @@ class Settings(BaseSettings):
     QDRANT_COLLECTION: str = "technical_rag"
 
     REDIS_URL: str 
-
+    JWT_SECRET_KEY: str = "SecretStr"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    
     OPENAI_API_KEY: str | None
     LLM_PROVIDER: str = "openai"
 

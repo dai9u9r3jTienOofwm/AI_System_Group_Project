@@ -18,11 +18,11 @@ import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { apiClient } from '@/lib/api-client';
 
 interface User {
-  id: string;
+  id: number;
+  username: string;
   email: string;
-  role: 'admin' | 'editor' | 'viewer';
-  createdAt: string;
-  status: 'active' | 'inactive';
+  is_active: boolean;
+  role: 'admin' | 'user';
 }
 
 export default function UsersPage() {
@@ -36,7 +36,7 @@ export default function UsersPage() {
     setLoading(true);
     try {
       const response = await apiClient.getUsers();
-      setUsers(response.data || []);
+      setUsers(response || []);
     } catch {
       message.error('Không thể tải danh sách người dùng');
     } finally {
@@ -78,7 +78,7 @@ export default function UsersPage() {
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
+  const handleDeleteUser = async (userId: number) => {
     try {
       await apiClient.deleteUser(userId);
       message.success('Xóa người dùng thành công');
@@ -89,10 +89,27 @@ export default function UsersPage() {
   };
 
   const columns = [
+    {title: 'id', dataIndex: 'id', key: 'id'},
+    {
+      title: 'Tên Đăng Nhập (Username)',
+      dataIndex: 'username',
+      key: 'username',
+      render: (text: string) => <span className="font-medium text-slate-200">{text || '(Trống)'}</span>
+    },
     {
       title: 'Email',
       dataIndex: 'email',
       key: 'email',
+    },
+    {
+      title: 'Trạng Thái',
+      dataIndex: 'is_active',
+      key: 'is_active',
+      render: (isActive: boolean) => (
+        <Tag color={isActive ? 'green' : 'gold'}>
+          {isActive ? 'Đang Hoạt Động' : 'Bị Khóa'}
+        </Tag>
+      ),
     },
     {
       title: 'Vai Trò',
@@ -103,22 +120,10 @@ export default function UsersPage() {
           color={
             role === 'admin'
               ? 'red'
-              : role === 'editor'
-              ? 'blue'
               : 'default'
           }
         >
           {role}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Trạng Thái',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => (
-        <Tag color={status === 'active' ? 'green' : 'default'}>
-          {status}
         </Tag>
       ),
     },

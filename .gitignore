@@ -1,5 +1,13 @@
-apps/api-server/.env
 apps/api-server/qdrant_data/
+.env
 
 __pycache__/
 *.pyc
+.aider*
+
+**/node_modules/
+**/.pnpm/
+**/.next/
+**/dist/
+**/build/
+.aider*

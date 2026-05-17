@@ -61,7 +61,7 @@ export default function DocumentsPage() {
       // Gọi API lấy trạng thái ingestion (bao gồm danh sách tài liệu)
       const response = await apiClient.getIngestStatus();
       // Adjust based on your API response
-      setDocuments(response.data?.documents || []);  // Cập nhật state
+      setDocuments(response?.documents || []);  // Cập nhật state
     } catch {
       message.error('Failed to load documents');  // Hiển thị lỗi
     } finally {

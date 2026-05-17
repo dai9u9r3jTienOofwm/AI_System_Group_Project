@@ -48,12 +48,11 @@ async function handler(req: NextRequest) {
       return NextResponse.json({ error: 'Endpoint is required' }, { status: 400 });
     }
 
-    const url = `${BACKEND_API_URL}/api/${endpoint.replace(/^\/+/, '')}`;
-    const token = req.cookies.get('authToken')?.value;
+    // Backend API dùng /v1/ prefix, không phải /api/
+    const url = `${BACKEND_API_URL}/v1/${endpoint.replace(/^\/+/, '')}`;
 
     const headers: HeadersInit = {
       ...(data ? { 'Content-Type': 'application/json' } : {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
 
     const response = await fetch(url, {
