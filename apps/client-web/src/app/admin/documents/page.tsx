@@ -10,8 +10,10 @@ interface Document {
   name: string;
   size: number;
   uploadedAt: string;
-  status: 'processing' | 'completed' | 'failed';
+  status: 'uploaded' | 'queued' | 'processing' | 'completed' | 'indexed' | 'failed';
   progress?: number;
+  error_message?: string | null;
+  chunk_count?: number | null;
 }
 
 export default function DocumentsPage() {
@@ -71,10 +73,27 @@ export default function DocumentsPage() {
     },
     {
       title: 'Trạng Thái', dataIndex: 'status', key: 'status',
-      render: (status: string) => (
-        <Tag color={status === 'completed' ? 'green' : status === 'processing' ? 'blue' : 'red'}>
-          {status}
-        </Tag>
+      render: (status: string, record: Document) => (
+        <>
+          <Tag
+            color={
+              status === 'completed' || status === 'indexed'
+                ? 'green'
+                : status === 'processing'
+                ? 'blue'
+                : status === 'queued'
+                ? 'orange'
+                : status === 'uploaded'
+                ? 'default'
+                : 'red'
+            }
+          >
+            {status}
+          </Tag>
+          {status === 'failed' && record.error_message && (
+            <span className="text-xs text-red-400 ml-1" title={record.error_message}>⚠</span>
+          )}
+        </>
       ),
     },
     {

@@ -22,9 +22,10 @@ class Document(Base):
     minio_object_name = Column(String, nullable=False)
     status = Column(String, nullable= False, default= "uploaded")
     chunk_count = Column(Integer, nullable= True)
+    error_message = Column(Text, nullable= True)
     
     uploaded_by = Column(Integer)
     created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now)   
+    updated_at = Column(DateTime, default=datetime.now)
     
     

@@ -3,13 +3,22 @@
 import { useQuery } from "@tanstack/react-query";
 
 type IngestStatus = {
-  status: "idle" | "processing" | "completed" | "failed";
+  status: "idle" | "queued" | "processing" | "completed" | "indexed" | "failed";
   progress: number; // 0 - 100
   message?: string;
+  documents?: Array<{
+    id: string;
+    name: string;
+    size: number;
+    status: string;
+    uploadedAt: string;
+    error_message?: string | null;
+    chunk_count?: number;
+  }>;
 };
 
 async function fetchIngestStatus(): Promise<IngestStatus> {
-  const res = await fetch("/api/proxy?endpoint=/ingest-status");
+  const res = await fetch("/api/proxy?endpoint=/ingest/status");
 
   if (!res.ok) {
     throw new Error("Failed to fetch ingest status");
@@ -52,9 +61,9 @@ export default function IngestStatusPage() {
         <span className="font-medium">Status: </span>
         <span
           className={
-            data?.status === "completed"
+            data?.status === "completed" || data?.status === "indexed"
               ? "text-emerald-300"
-              : data?.status === "processing"
+              : data?.status === "processing" || data?.status === "queued"
               ? "text-amber-300"
               : data?.status === "failed"
               ? "text-rose-300"

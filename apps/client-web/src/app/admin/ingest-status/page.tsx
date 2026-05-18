@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 type IngestStatus = {
-  status: 'idle' | 'processing' | 'completed' | 'failed';
+  status: 'idle' | 'queued' | 'processing' | 'completed' | 'indexed' | 'failed';
   progress: number;
   message?: string;
 };
@@ -25,8 +25,8 @@ export default function IngestStatusPage() {
   if (isError) return <p className="p-10 text-red-400">Lỗi: {(error as Error).message}</p>;
 
   const statusColor =
-    data?.status === 'completed' ? 'text-emerald-300'
-    : data?.status === 'processing' ? 'text-amber-300'
+    data?.status === 'completed' || data?.status === 'indexed' ? 'text-emerald-300'
+    : data?.status === 'processing' || data?.status === 'queued' ? 'text-amber-300'
     : data?.status === 'failed' ? 'text-rose-300'
     : 'text-slate-400';
 

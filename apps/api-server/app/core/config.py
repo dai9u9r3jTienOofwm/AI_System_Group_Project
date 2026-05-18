@@ -20,6 +20,8 @@ class Settings(BaseSettings):
 
     QDRANT_URL: str
     QDRANT_COLLECTION: str = "technical_rag"
+    QDRANT_VECTOR_SIZE: int = 1536
+
 
     REDIS_URL: str 
     JWT_SECRET_KEY: str = "SecretStr"
