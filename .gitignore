@@ -11,3 +11,9 @@ __pycache__/
 **/dist/
 **/build/
 .aider*
+handoffs.md
+.idea/
+implementation-summary.md
+plan.md
+review-report.md
+tasks.md

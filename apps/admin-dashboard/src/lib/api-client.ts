@@ -57,17 +57,7 @@ class ApiClient {
   }
 
   async getIngestStatus(): Promise<any> {
-    try {
-      return await this.client.get('/v1/ingest/status') as any;
-    } catch (error) {
-      console.warn('Endpoint /v1/ingest/status chưa được implement, dùng mock data');
-      return {
-        status: 'idle',
-        progress: 0,
-        documents: [],
-        message: 'Endpoint chưa được implement',
-      };
-    }
+    return this.client.get('/v1/ingest/status');
   }
 
   /**

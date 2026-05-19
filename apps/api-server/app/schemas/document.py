@@ -23,7 +23,8 @@ class DocumentRespond(BaseModel):
     file_size: int
     status: str
     chunk_count: int | None = None
-    created_at:datetime 
+    error_message: str | None = None
+    created_at:datetime
     updated_at:datetime
     
     model_config = ConfigDict(from_attributes=True)

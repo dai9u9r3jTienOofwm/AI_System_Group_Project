@@ -37,8 +37,10 @@ interface Document {
   name: string;         // Tên file
   size: number;         // Kích thước file
   uploadedAt: string;   // Thời gian upload
-  status: 'processing' | 'completed' | 'failed';  // Trạng thái xử lý
+  status: 'uploaded' | 'queued' | 'processing' | 'completed' | 'indexed' | 'failed';  // Trạng thái xử lý
   progress?: number;    // Phần trăm xử lý (0-100)
+  error_message?: string | null;  // Lỗi nếu failed
+  chunk_count?: number | null;    // Số lượng chunks
 }
 
 export default function DocumentsPage() {
@@ -129,18 +131,29 @@ export default function DocumentsPage() {
       title: 'Trạng Thái',
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => (
-        <Tag
-          color={
-            status === 'completed'
-              ? 'green'
-              : status === 'processing'
-              ? 'blue'
-              : 'red'
-          }
-        >
-          {status}
-        </Tag>
+      render: (status: string, record: Document) => (
+        <>
+          <Tag
+            color={
+              status === 'completed' || status === 'indexed'
+                ? 'green'
+                : status === 'processing'
+                ? 'blue'
+                : status === 'queued'
+                ? 'orange'
+                : status === 'uploaded'
+                ? 'default'
+                : 'red'
+            }
+          >
+            {status}
+          </Tag>
+          {status === 'failed' && record.error_message && (
+            <span className="text-xs text-red-400 ml-1" title={record.error_message}>
+              ⚠
+            </span>
+          )}
+        </>
       ),
     },
     {
