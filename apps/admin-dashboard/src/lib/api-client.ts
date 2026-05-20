@@ -4,7 +4,11 @@
  */
 import axios, { AxiosInstance } from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const isServer = typeof window === 'undefined';
+
+export const API_BASE_URL = isServer
+  ? (process.env.INTERNAL_API_URL || 'http://backend:8000')      
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
 
 class ApiClient {
   public client: AxiosInstance;
@@ -82,7 +86,7 @@ class ApiClient {
 
   async createUser(userData: Record<string, unknown>): Promise<any> {
     try {
-      return await this.client.post('/v1/users', userData) as any;
+      return await this.client.post('/v1/admin/users', userData) as any;
     } catch (error) {
       console.warn('Endpoint POST /v1/users chưa được implement');
       return {
@@ -93,7 +97,7 @@ class ApiClient {
   }
 
   async updateUser(userId: number, userData: Record<string, unknown>): Promise<any> {
-    return this.client.put(`/v1/users/${userId}`, userData);
+    return this.client.put(`/v1/admin/users/${userId}`, userData);
   }
 
   async deleteUser(userId: number): Promise<any> {

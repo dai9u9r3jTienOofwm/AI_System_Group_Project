@@ -1,6 +1,6 @@
 export async function GET() {
   try {
-    const pythonUrl = process.env.PYTHON_API_URL ?? 'http://localhost:8000';
+    const pythonUrl = process.env.INTERNAL_API_URL || 'http://backend:8000';
     const response = await fetch(`${pythonUrl}/v1/documents`, { cache: 'no-store' });
 
     if (!response.ok) throw new Error(`Backend error: ${response.status}`);

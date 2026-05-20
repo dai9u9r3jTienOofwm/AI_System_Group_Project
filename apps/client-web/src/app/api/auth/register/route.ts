@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const { email, password } = body;
 
     // 1. Gọi sang Python Backend (FastAPI) để tạo tài khoản
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const backendUrl = process.env.INTERNAL_API_URL || 'http://backend:8000';
     const backendRes = await fetch(`${backendUrl}/v1/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

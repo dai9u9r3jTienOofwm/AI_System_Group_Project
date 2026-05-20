@@ -64,7 +64,39 @@ def get_all_users(db:Session = Depends(get_db)):
     users = db.query(User).all()
     return users  
 
+@router.post("/user")
+def create_user(userdata,db:Session = Depends(get_db)):
+    exist_user = db.query(User).filter(User.email == userdata.get("email")).first() 
+    
+    if exist_user:
+        raise HTTPException(status_code=400, detail=f"Email {userdata.get('email')}!")
 
+    new_user = User(
+        username = userdata.get("username"),
+        email = userdata.get("email"),
+        password = userdata.get("password"),
+        is_active = True
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    return {"status": "success", "message": "User created!"}
+
+@router.put("/users/{user_id}")
+def update_user(user_id, user_data,db:Session = Depends(get_db) ):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found!")
+        
+    # Cập nhật các trường thông tin do Admin truyền lên
+    if "role" in user_data:
+        user.role = user_data["role"]      # Đổi quyền (ví dụ: cấp quyền admin hoặc hạ quyền xuống user)
+    if "username" in user_data:
+        user.username = user_data["username"]
+        
+    db.commit()
+    return {"status": "success", "message": "Updated user!"}
 
 @router.delete("/user/{user_id}")      
 def delete_user(user_id: int, db: Session = Depends(get_db)):

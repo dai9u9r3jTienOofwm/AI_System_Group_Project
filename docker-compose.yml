@@ -76,7 +76,8 @@ services:
     env_file:
       - .env                                                                                                                                                                                                        
     environment:                                                                                                                                                                                                           
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}                                                                                                                                                                
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - INTERNAL_API_URL=${INTERNAL_API_URL}                                                                                                                                                                
     depends_on:                                                                                                                                                                                                            
       - backend                                                                                                                                                                                                            
   admin:

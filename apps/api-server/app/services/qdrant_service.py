@@ -20,6 +20,7 @@ Provides a clean abstraction over Qdrant for the ingestion pipeline:
 import hashlib
 import logging
 from typing import Any
+import uuid
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
@@ -186,8 +187,15 @@ def upsert_documents(chunks: list[dict[str, Any]]) -> int:
     vectors = embeddings_model.embed_documents(texts)
 
     points: list[PointStruct] = []
-    for chunk, vector in zip(chunks, vectors):
-        point_id = chunk["metadata"].get("chunk_id")
+    print(f" LOG ĐIỀU TRA: Có {len(chunks)} chunks và {len(vectors)} vectors.")
+    for idx,  (chunk, vector) in enumerate(zip(chunks, vectors)):
+        document_id = chunks[0]["metadata"].get("document_id")
+        
+        if not document_id:
+            raise ValueError("Cannot find document id")
+        namespace_uuid = uuid.UUID(str(document_id))
+        
+        point_id = str(uuid.uuid5(namespace_uuid, f"chunk_{idx}"))
         if not point_id:
             logger.error("Chunk missing 'chunk_id' in metadata — skipping")
             continue
@@ -202,7 +210,7 @@ def upsert_documents(chunks: list[dict[str, Any]]) -> int:
     if not points:
         logger.warning("No valid points to upsert after filtering")
         return 0
-
+    print(f" LOG ĐIỀU TRA: Tổng số points chuẩn bị bắn lên Qdrant là: {len(points)}")
     client.upsert(
         collection_name=settings.QDRANT_COLLECTION,
         points=points,
@@ -247,14 +255,14 @@ def search_similar(question: str, top_k: int = 5) -> list[dict[str, Any]]:
 
     query_vector = embeddings_model.embed_query(question)
 
-    results = client.search(
+    results = client.query_points(
         collection_name=settings.QDRANT_COLLECTION,
-        query_vector=query_vector,
+        query=query_vector,
         limit=top_k,
     )
 
     output = []
-    for res in results:
+    for res in results.points:
         payload = res.payload or {}
         output.append(
             {

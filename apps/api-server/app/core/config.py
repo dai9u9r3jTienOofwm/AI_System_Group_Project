@@ -7,7 +7,7 @@
 # - Đọc OPENAI_API_KEY/GEMINI_API_KEY/OLLAMA_URL
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
+from typing import Optional
 
 class Settings(BaseSettings):
     DATABASE_URL: str 
@@ -24,12 +24,12 @@ class Settings(BaseSettings):
 
 
     REDIS_URL: str 
-    JWT_SECRET_KEY: str = "SecretStr"
-    JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+
+    LLM_PROVIDER: str = "openai"         
+    LLM_MODEL: str = "gpt-4o-mini"
     
-    OPENAI_API_KEY: str | None
-    LLM_PROVIDER: str = "openai"
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_API_BASE: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -17,14 +17,19 @@ def create_document(db: Session,
             minio_bucket: str,
             minio_object_name: str,
             status: str,
+            chunk_count: int,
+            error_message: str,
             upload_id: int):
     print(f"Check postgrest: {type(db)}")
     new_doc =  Document(document_id = document_id,
                 filename = filename,
+                content_type = content_type,
                 file_size = file_size,
                 minio_bucket = minio_bucket,
                 minio_object_name = minio_object_name,
                 status = status,
+                chunk_count = chunk_count,
+                error_message = error_message,
                 uploaded_by = upload_id)
     
     db.add(new_doc)

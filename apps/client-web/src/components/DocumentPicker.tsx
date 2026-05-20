@@ -25,7 +25,7 @@ export default function DocumentPicker({ selectedIds, onChangeIds }: DocumentPic
     if (fetched) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/documents');
+      const res = await fetch('/api/documents');
       const data = await res.json();
       setDocs(data.documents ?? []);
     } finally {

@@ -18,14 +18,21 @@ class DocumentService:
         )
         print(f"Check document service: {type(self.db)}")
         #2. Lưu metadata vào Postgres
+        # Get file size
+        file.file.seek(0, 2)  # Seek to end
+        file_size = file.file.tell()
+        file.file.seek(0)  # Reset to start
+        
         new_doc = postgres_client.create_document(db = self.db,
             document_id=document_id,
             filename=file.filename,
             content_type=file.content_type,
-            file_size = file.size,
+            file_size = file_size,
             minio_bucket=settings.MINIO_BUCKET,
             minio_object_name=object_name,
             status="queued",
+            chunk_count = 0,
+            error_message = None,
             upload_id=admin_id 
         )
         # 3. Gửi task cho Celery để xử lý nạp dữ liệu (OCR, Chunking, Embedding)

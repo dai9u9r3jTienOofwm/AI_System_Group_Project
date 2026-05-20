@@ -73,7 +73,7 @@ def _doc_to_frontend(doc) -> dict:
     }
 
 
-@router.get("")
+@router.get("/status")
 def get_ingest_status(db: Session = Depends(get_db)):
     """Return aggregate ingest status plus full document list."""
     docs = postgres_client.get_list_documents(db)

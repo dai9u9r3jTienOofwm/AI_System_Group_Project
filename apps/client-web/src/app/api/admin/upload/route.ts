@@ -1,7 +1,7 @@
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
-    const pythonUrl = process.env.PYTHON_API_URL ?? 'http://localhost:8000';
+    const pythonUrl = process.env.INTERNAL_API_URL || 'http://backend:8000';;
 
     const response = await fetch(`${pythonUrl}/v1/admin/upload`, {
       method: 'POST',

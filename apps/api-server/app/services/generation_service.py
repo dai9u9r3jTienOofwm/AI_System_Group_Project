@@ -72,6 +72,7 @@ def _get_llm():
 
     if provider == "openai":
         api_key = settings.OPENAI_API_KEY
+        api_base = settings.OPENAI_API_BASE
         if api_key and isinstance(api_key, str) and api_key.strip() not in ("", "None"):
             try:
                 from langchain_openai import ChatOpenAI
@@ -79,6 +80,7 @@ def _get_llm():
                 logger.info("Using ChatOpenAI (model=gpt-4o-mini)")
                 return ChatOpenAI(
                     openai_api_key=api_key,
+                    openai_api_base=api_base,
                     model="gpt-4o-mini",
                     temperature=0.3,
                 )

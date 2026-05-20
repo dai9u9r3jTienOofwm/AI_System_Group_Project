@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     const password = body.password;
 
     // 1. Gọi sang Python Backend để xác thực
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const backendUrl = process.env.INTERNAL_API_URL || 'http://backend:8000';
     const backendRes = await fetch(`${backendUrl}/v1/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
