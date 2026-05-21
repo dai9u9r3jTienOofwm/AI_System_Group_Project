@@ -9,7 +9,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const onFinish = async (values: { email: string; password: string }) => {
+  const onFinish = async (values: { username: string; password: string }) => {
   setLoading(true);
   try {
     // 1. GIẢI QUYẾT MÂU THUẪN 1: Gọi vào Route nội bộ thay vì gọi thẳng Python
@@ -56,15 +56,12 @@ export default function LoginPage() {
         <Spin spinning={loading} tip="Đang xác thực...">
           <Form onFinish={onFinish} layout="vertical" size="large">
             <Form.Item
-              name="email"
-              rules={[
-                { required: true, message: 'Vui lòng nhập email!' },
-                { type: 'email', message: 'Định dạng email không hợp lệ!' },
-              ]}
+              name="username"
+              rules={[{ required: true, message: 'Vui lòng nhập tên đăng nhập!' }]}
             >
               <Input
                 prefix={<UserOutlined className="text-gray-400" />}
-                placeholder="admin@example.com"
+                placeholder="Tên đăng nhập"
               />
             </Form.Item>
 
@@ -93,7 +90,7 @@ export default function LoginPage() {
         </Spin>
 
         <div className="text-center text-sm text-gray-400 mt-6 pt-4 border-t border-gray-100">
-          <p>Tài khoản thử nghiệm: admin@example.com / password123</p>
+          <p>Tài khoản thử nghiệm: admin / password123</p>
         </div>
       </Card>
     </div>

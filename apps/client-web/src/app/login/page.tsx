@@ -20,10 +20,9 @@ export default function LoginPage() {
   setError('');
 
   try {
-    // Đóng gói dữ liệu từ form gửi sang cho Python
-    const values = { 
-      email: username.trim(), 
-      password: password 
+    const values = {
+      username: username.trim(),
+      password: password
     };
 
     // 1. Gọi API đăng nhập bằng apiClient hướng sang Python Backend
@@ -48,11 +47,7 @@ export default function LoginPage() {
       document.cookie = `auth_role=${userRole}; path=/; max-age=86400; SameSite=Lax;`;
     }
 
-    // 3. ĐÃ SỬA: Điều hướng dựa vào cờ data.is_admin (kiểu Boolean) của Python trả về
-    const targetPath = data.is_admin === true ? '/admin' : '/';
-    
-    // Thực hiện chuyển trang
-    router.push(targetPath);
+    router.push('/');
     router.refresh();
 
   } catch (err: any) {
@@ -79,7 +74,7 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-1.5">
-              Tài khoản
+              Tên đăng nhập
             </label>
             <div className="relative">
               <User size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -126,7 +121,16 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-gray-600 mt-6">
+        <p className="text-center text-sm text-gray-400 mt-6">
+          Chưa có tài khoản?{' '}
+          <button
+            onClick={() => router.push('/register')}
+            className="text-blue-500 hover:text-blue-400 font-medium transition-colors"
+          >
+            Đăng ký tại đây
+          </button>
+        </p>
+        <p className="text-center text-xs text-gray-600 mt-2">
           UET AI System — Nhóm dự án môn học
         </p>
       </div>

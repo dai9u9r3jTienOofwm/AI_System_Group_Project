@@ -12,6 +12,8 @@ from app.db.session import get_db
 from app.schemas.document import DocumentRespond, DocumentListRespond
 from app.services.minio_service import get_client
 from app.services.ingestion_service import reindex_document
+from app.services import postgres_client
+from app.services import qdrant_service
 router = APIRouter()
 
 
@@ -35,6 +37,24 @@ async def get_document(document_id: str,db: Session = Depends(get_db)):
     
     return document_found
     
+#DELETE /v1/documents/{document_id}
+@router.delete("/{document_id}")
+async def delete_document_endpoint(document_id: str, db: Session = Depends(get_db)):
+    doc_service = DocumentService(db, get_client())
+    document_found = doc_service.get_document(document_id)
+    if document_found is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Document {document_id} not found!",
+        )
+    try:
+        qdrant_service.delete_by_document_id(document_id)
+    except Exception:
+        pass
+    postgres_client.delete_document(db, document_id)
+    return {"status": "success", "detail": f"Document {document_id} deleted"}
+
+
 #POST /v1/documents/{document_id}/reindex
 @router.post("/{document_id}/reindex")
 async def reindex_document_endpoint(document_id: str, db: Session = Depends(get_db)):

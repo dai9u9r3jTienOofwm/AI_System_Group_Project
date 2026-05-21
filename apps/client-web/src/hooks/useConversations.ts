@@ -22,7 +22,11 @@ export interface Conversation {
   pinned?: boolean;
 }
 
-const STORAGE_KEY = 'uet_ai_conversations';
+function getStorageKey(): string {
+  if (typeof window === 'undefined') return 'uet_ai_conversations';
+  const userId = localStorage.getItem('userId') || 'guest';
+  return `uet_ai_conversations_${userId}`;
+}
 
 function makeNew(): Conversation {
   return {
@@ -42,7 +46,7 @@ export function useConversations() {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(getStorageKey());
       if (stored) {
         const convs: Conversation[] = JSON.parse(stored);
         if (convs.length > 0) {
@@ -62,7 +66,7 @@ export function useConversations() {
 
   useEffect(() => {
     if (initialized) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
+      localStorage.setItem(getStorageKey(), JSON.stringify(conversations));
     }
   }, [conversations, initialized]);
 

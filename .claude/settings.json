@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(docker compose logs worker --tail 40 2>&1)"
+    ]
+  }
+}

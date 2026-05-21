@@ -32,4 +32,4 @@ COPY --from=builder /app/public ./public
 
 EXPOSE 3001
 
-CMD ["npm", "start"]
+CMD ["node_modules/.bin/next", "start", "-p", "3001"]

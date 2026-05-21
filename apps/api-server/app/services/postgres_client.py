@@ -43,6 +43,15 @@ def get_document(db: Session, document_id: str) -> Document | None:
     return db.query(Document).filter(Document.document_id == document_id).first()
 
 
+def delete_document(db: Session, document_id: str) -> bool:
+    doc = db.query(Document).filter(Document.document_id == document_id).first()
+    if doc is None:
+        return False
+    db.delete(doc)
+    db.commit()
+    return True
+
+
 def update_document_status(
     db: Session,
     document_id: str,

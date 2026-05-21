@@ -64,6 +64,7 @@ def get_all_users(db:Session = Depends(get_db)):
     users = db.query(User).all()
     return users  
 
+@router.post("/users")
 @router.post("/user")
 def create_user(userdata,db:Session = Depends(get_db)):
     exist_user = db.query(User).filter(User.email == userdata.get("email")).first() 
@@ -98,7 +99,8 @@ def update_user(user_id, user_data,db:Session = Depends(get_db) ):
     db.commit()
     return {"status": "success", "message": "Updated user!"}
 
-@router.delete("/user/{user_id}")      
+@router.delete("/users/{user_id}")
+@router.delete("/user/{user_id}")
 def delete_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:

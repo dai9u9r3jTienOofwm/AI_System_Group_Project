@@ -30,21 +30,14 @@ export function proxy(request: NextRequest) {
   // TRƯỜNG HỢP 2: ĐÃ ĐĂNG NHẬP (Có userId hợp lệ)
   // ==========================================
   
-  // 1. Đã đăng nhập rồi mà cố tình quay lại trang /login hoặc /register -> Đẩy vào đúng phân khu của họ
+  // 1. Đã đăng nhập rồi mà cố tình quay lại trang /login hoặc /register -> Đẩy về trang chủ
   if (isLoginPage || isRegisterPage) {
-    return NextResponse.redirect(
-      new URL(userRole === 'admin' ? '/admin' : '/', request.url)
-    );
-  }
-
-  // 2. TÀI KHOẢN THƯỜNG (client) cố mò vào vùng quản trị (/admin) -> Chặn đứng, đá về trang chủ user
-  if (userRole === 'client' && isAdminPage) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // 3. ADMIN đi lạc vào trang chủ user (/) -> Ép quay về đại bản doanh /admin
-  if (userRole === 'admin' && pathname === '/') {
-    return NextResponse.redirect(new URL('/admin', request.url));
+  // 2. Chặn mọi người dùng vào vùng /admin của client-web (admin dùng localhost:3001)
+  if (isAdminPage) {
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   // Tất cả các trường hợp chuyển trang hợp lệ khác cho phép đi tiếp bình thường
