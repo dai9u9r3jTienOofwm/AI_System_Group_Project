@@ -53,7 +53,7 @@ export default function LoginPage() {
         </div>
 
         {/* Spin bọc bên ngoài sẽ làm mờ toàn bộ form khi đang gọi API */}
-        <Spin spinning={loading} tip="Đang xác thực...">
+        <Spin spinning={loading} description="Đang xác thực...">
           <Form onFinish={onFinish} layout="vertical" size="large">
             <Form.Item
               name="username"

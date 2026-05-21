@@ -25,17 +25,6 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-html {
-  font-size: 20px;
-}
-/* Tăng kích thước chữ chung cho toàn bộ con chữ bên trong hệ thống bảng Ant Design */
-.ant-table-wrapper, 
-.ant-table,
-.ant-table-cell,
-.ant-btn,
-.ant-tag {
-    font-size: 20px !important; 
-}
 
 /* ===== DARK THEME FOR ANT DESIGN COMPONENTS ===== */
 
