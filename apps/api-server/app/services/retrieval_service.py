@@ -22,8 +22,10 @@ logger = logging.getLogger(__name__)
 
 def retrieve(
     question: str,
-    top_k: int = 5,
-) -> list[dict[str, Any]]:
+    topic: str,
+    uploaded_by: str = None,
+    filename: str = None,
+    top_k: int = 5) -> list[dict[str, Any]]:
     """Retrieve semantically similar chunks from Qdrant.
 
     Parameters
@@ -48,6 +50,9 @@ def retrieve(
     try:
         raw_results: list[dict[str, Any]] = search_similar(
             question=question,
+            topic=topic,
+            uploaded_by=uploaded_by,
+            filename = filename,
             top_k=top_k,
         )
     except Exception:

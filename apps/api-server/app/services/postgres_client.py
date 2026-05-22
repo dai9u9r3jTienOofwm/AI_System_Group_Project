@@ -19,7 +19,8 @@ def create_document(db: Session,
             status: str,
             chunk_count: int,
             error_message: str,
-            upload_id: int):
+            uploaded_by: str,
+            topic: str = None):
     print(f"Check postgrest: {type(db)}")
     new_doc =  Document(document_id = document_id,
                 filename = filename,
@@ -30,7 +31,8 @@ def create_document(db: Session,
                 status = status,
                 chunk_count = chunk_count,
                 error_message = error_message,
-                uploaded_by = upload_id)
+                topic = topic,
+                uploaded_by = uploaded_by)
     
     db.add(new_doc)
     db.commit()
@@ -58,6 +60,7 @@ def update_document_status(
     status: str,
     chunk_count: int | None = None,
     error_message: str | None = _UNSET,
+    topic: str | None = None
 ) -> Document | None:
     """Update a document's status and optional chunk_count / error_message.
     
@@ -73,6 +76,8 @@ def update_document_status(
         doc.chunk_count = chunk_count
     if error_message is not _UNSET:
         doc.error_message = error_message
+    if topic is not None:
+        doc.topic = topic    
     doc.updated_at = datetime.now()
     db.commit()
     db.refresh(doc)

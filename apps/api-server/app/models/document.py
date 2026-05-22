@@ -24,7 +24,8 @@ class Document(Base):
     chunk_count = Column(Integer, nullable= True)
     error_message = Column(Text, nullable= True)
     
-    uploaded_by = Column(Integer)
+    topic = Column(String, nullable=True)
+    uploaded_by = Column(String)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now)
     

@@ -26,12 +26,7 @@ def get_doc_service(db: Session = Depends(get_db)):
     return DocumentService(db, get_client())
 
 @router.post("/upload", response_model=UploadDocumentRespond)
-async def upload_file(file: UploadFile = File(...),doc_service: DocumentService = Depends(get_doc_service),userId: str = Cookie(None)):
-    if not userId:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
-            detail="Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!"
-        )
+async def upload_file(file: UploadFile = File(...),doc_service: DocumentService = Depends(get_doc_service)):
     if not file.filename:
         raise HTTPException(
             status_code= status.HTTP_404_NOT_FOUND,
@@ -51,8 +46,7 @@ async def upload_file(file: UploadFile = File(...),doc_service: DocumentService 
     object_name = f"documents/{document_id}/{file.filename}"
         
     try:
-        user_id = int(userId)
-        return await doc_service.handle_upload(file=file,admin_id=user_id,document_id=document_id,object_name=object_name) 
+        return await doc_service.handle_upload(file=file,upload_by = "admin",document_id=document_id,object_name=object_name) 
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

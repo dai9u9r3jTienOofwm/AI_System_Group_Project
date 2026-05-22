@@ -14,7 +14,7 @@ interface SidebarProps {
   onRename: (id: string, title: string) => void;
   onLogout: () => void;
   isOpen: boolean;
-  onClose: () => void;
+  setIsOpen: (isOpen: boolean) => void; // 🌟 1. Thêm type cho setIsOpen
 }
 
 export default function Sidebar({
@@ -27,7 +27,7 @@ export default function Sidebar({
   onRename,
   onLogout,
   isOpen,
-  onClose,
+  setIsOpen, // 🌟 2. Nhận đúng tên setIsOpen từ page.tsx truyền vào
 }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -65,7 +65,7 @@ export default function Sidebar({
         onClick={() => {
           if (isEditing) return;
           onSelect(conv.id);
-          onClose();
+          setIsOpen(false); // 🌟 3. Gọi setIsOpen(false) để đóng sidebar trên mobile
         }}
         className={`group flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
           isActive
@@ -133,7 +133,7 @@ export default function Sidebar({
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/40 z-20 md:hidden" onClick={onClose} />
+        <div className="fixed inset-0 bg-black/40 z-20 md:hidden" onClick={() => setIsOpen(false)} />
       )}
 
       <aside
@@ -151,14 +151,14 @@ export default function Sidebar({
             </div>
             <span className="font-semibold text-sm tracking-tight">UET AI</span>
           </div>
-          <button onClick={onClose} className="md:hidden text-gray-400 hover:text-white transition-colors">
+          <button onClick={() => setIsOpen(false)} className="md:hidden text-gray-400 hover:text-white transition-colors">
             <X size={17} />
           </button>
         </div>
 
         <div className="px-3 pt-3 pb-2">
           <button
-            onClick={() => { onNew(); onClose(); }}
+            onClick={() => { onNew(); setIsOpen(false); }}
             className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm font-medium transition-colors"
           >
             <PlusCircle size={15} className="text-blue-400 shrink-0" />

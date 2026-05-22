@@ -1,32 +1,41 @@
-export async function POST(req: Request) {
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+
+export async function POST(request: NextRequest) {
   try {
-    const { messages, documentIds } = await req.json();
+    const body = await request.json();
+    
+    // 🌟 1. Lấy chính xác giá trị của cookie 'userId' mà trình duyệt gửi lên Next.js
+    const cookieStore = await cookies();
+    const userId = cookieStore.get('userId')?.value;
 
-    const pythonBackendUrl = process.env.INTERNAL_API_URL || 'http://backend:8000';
+    // 🌟 2. Đóng gói lại thành chuỗi Cookie đúng chuẩn format HTTP
+    const cookieHeader = userId ? `userId=${userId}` : '';
 
-    const lastMessage = messages && messages.length > 0 ? messages[messages.length - 1].content : "";
-
-    const response = await fetch(`${pythonBackendUrl}/v1/chat`, {
+    const response = await fetch('http://backend:8000/v1/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({question: lastMessage, top_k: 5}),
+      headers: {
+        'Content-Type': 'application/json',
+        // 🌟 3. Truyền chuỗi Cookie này sang cho Python
+        // Lúc này FastAPI dùng `Cookie(None)` sẽ tự động bóc được ID ra ngon ơ!
+        'Cookie': cookieHeader, 
+      },
+      body: JSON.stringify(body),
     });
-
-    if (!response.ok) {
-      throw new Error(`Backend trả về lỗi: ${response.status}`);
-    }
 
     const data = await response.json();
 
-    return Response.json({
-      answer: data.answer ?? data.content ?? '',
-      sources: data.sources ?? [],
-    });
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: data.detail || 'Lỗi xác thực từ Server AI' }, 
+        { status: response.status }
+      );
+    }
+
+    return NextResponse.json(data);
+
   } catch (error) {
-    console.error('API Chat Error:', error);
-    return Response.json(
-      { error: 'Lỗi kết nối đến máy chủ AI.' },
-      { status: 500 }
-    );
+    console.error('Lỗi tại API Chat Proxy:', error);
+    return NextResponse.json({ error: 'Lỗi hệ thống' }, { status: 500 });
   }
 }

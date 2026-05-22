@@ -52,7 +52,9 @@ class ChatRequest(BaseModel):
     """Request body for ``POST /v1/chat`` (Stage 10)."""
 
     question: str = Field(..., min_length=1, description="User query text.")
+    topic: str
     top_k: int = Field(default=5, ge=1, le=20, description="Number of retrieval results to use as context.")
+    
 
 
 class Source(BaseModel):

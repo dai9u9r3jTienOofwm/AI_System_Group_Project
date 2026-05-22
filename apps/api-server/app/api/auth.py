@@ -1,3 +1,9 @@
+# - Nhận file từ FastAPI
+# - Validate file
+# - Gọi MinIO để upload file gốc
+# - Tạo metadata trong PostgreSQL
+# - Gửi task cho worker
+
 #Vào Postgres tìm User theo Email.
 #So sánh trực tiếp chuỗi mật khẩu người dùng nhập với mật khẩu lưu trong DB.
 #{"status": "success", "is_admin": true}

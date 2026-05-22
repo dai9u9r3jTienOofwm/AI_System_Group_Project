@@ -16,13 +16,28 @@ services:
       - VECTOR_DB_URL=${QDRANT_URL}                                                                                                                                                                                        
       - REDIS_URL=${REDIS_URL}                                                                                                                                                                                             
     command: uvicorn main:app --host 0.0.0.0 --port 8000                                                                                                                                                                   
-                                                                                                                                                                                                                           
+
+  seeder:
+    build:
+      context: .
+      dockerfile: Dockerfile.seeder
+    container_name: rag_seeder
+    volumes:
+      - ./dataset:/app
+      - ./app/workers:/app/workers
+    environment:
+      - PYTHONPATH=/app:/app/workers
+    depends_on:
+      - backend      
+      - vector_db  
+      - db
+
   db:                                                                                                                                                                                                                      
     image: postgres:15-alpine                                                                                                                                                                                              
     environment:                                                                                                                                                                                                           
-      - POSTGRES_DB=ragdb                                                                                                                                                                                                  
-      - POSTGRES_USER=postgres                                                                                                                                                                                             
-      - POSTGRES_PASSWORD=12345678                                                                                                                                                                                         
+      - POSTGRES_DB=${POSTGRES_DB}                                                                                                                                                                                                  
+      - POSTGRES_USER=${POSTGRES_USER}                                                                                                                                                                                             
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}                                                                                                                                                                                        
     volumes:                                                                                                                                                                                                               
       - db_data:/var/lib/postgresql/data                                                                                                                                                                                   
                                                                                                                                                                                                                            
@@ -52,15 +67,17 @@ services:
                                                                                                                                                                                                                            
   worker:                                                                                                                                                                                                                  
     build: ./apps/api-server                                                                                                                                                                                             
-    command: celery -A app.workers.celery_app worker -Q ingestion --loglevel=info                                                                                                                                          
+    command: celery -A app.workers.celery_app worker -Q ingestion --loglevel=info --concurrency=1                                                                                                                                          
     env_file:                                                                                                                                                                                                              
-      - .env                                                                                                                                                                                                               
+      - .env
+                                                                                                                                                                                          
+    restart: unless-stopped                                                                                                                                                                                                               
     environment:                                                                                                                                                                                                           
       - C_FORCE_ROOT=true                                                                                                                                                                                                  
       - DATABASE_URL=${DATABASE_URL}                                                                                                                                                                                       
       - REDIS_URL=${REDIS_URL}                                                                                                                                                                                             
       - OBJECT_STORAGE_ENDPOINT=${MINIO_ENDPOINT}                                                                                                                                                                          
-      - VECTOR_DB_URL=${QDRANT_URL}                                                                                                                                                                                        
+      - VECTOR_DB_URL=${QDRANT_URL}  
     depends_on:                                                                                                                                                                                                            
       - db                                                                                                                                                                                                                 
       - redis                                                                                                                                                                                                              
@@ -94,7 +111,8 @@ services:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       - INTERNAL_API_URL=${INTERNAL_API_URL}
     depends_on: 
-      - backend                                                                                                                                                                                                           
+      - backend   
+                                                                                                                                                                                          
 volumes:                                                                                                                                                                                                                   
   db_data:                                                                                                                                                                                                                 
   minio_data:                                                                                                                                                                                                              

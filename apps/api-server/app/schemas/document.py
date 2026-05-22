@@ -22,6 +22,7 @@ class DocumentRespond(BaseModel):
     content_type: str | None = None
     file_size: int
     status: str
+    topic: str
     chunk_count: int | None = None
     error_message: str | None = None
     created_at:datetime

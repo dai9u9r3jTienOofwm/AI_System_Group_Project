@@ -6,8 +6,10 @@ Exposes:
     POST /v1/chat           — retrieve + generate answer via LLM  (Stage 10)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Cookie, Form
+from sqlalchemy.orm import Session
+from uuid import uuid4
+import re
 from app.schemas.chat import (
     ChatRequest,
     ChatResponse,
@@ -18,8 +20,49 @@ from app.schemas.chat import (
 )
 from app.services.retrieval_service import retrieve
 from app.services.generation_service import generate_answer
+from app.api.admin import ALLOWED_EXTENSIONS, get_doc_service
+from app.services.document_service import DocumentService
+from app.schemas.document import UploadDocumentRespond
+from app.db.session import get_db
+from app.models.user import User
+
+
 
 router = APIRouter()
+
+@router.post("/upload", response_model=UploadDocumentRespond)
+async def upload_file(file: UploadFile = File(...),topic: str = Form(None),doc_service: DocumentService = Depends(get_doc_service), userId: str = Cookie(None)):
+    if not userId:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!"
+        )
+    
+    if not file.filename:
+        raise HTTPException(
+            status_code= status.HTTP_404_NOT_FOUND,
+            detail= "Filename is required.",  
+        )
+    user_id = int(userId)
+    
+    file_extension = '.'+ str(file.filename.split('.')[-1].lower()) 
+
+    
+    if file_extension not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code= status.HTTP_404_NOT_FOUND,
+            detail= ".",  
+        )   
+    document_id = str(uuid4())
+    object_name = f"documents/{document_id}/{file.filename}"
+        
+    try:
+        return await doc_service.handle_upload(file=file,upload_by = str(user_id),document_id=document_id,object_name=object_name, topic=topic)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Upload failed: {str(exc)}",
+        )
 
 
 @router.post(
@@ -80,7 +123,7 @@ def retrieve_chunks(payload: RetrieveRequest) -> RetrieveResponse:
         "the configured LLM to generate an answer with source citations."
     ),
 )
-def chat(payload: ChatRequest) -> ChatResponse:
+def chat(payload: ChatRequest,userId: str = Cookie(None)) -> ChatResponse:
     """Retrieve context and generate an answer via the configured LLM.
 
     1. Validates the request (non-empty question).
@@ -93,11 +136,23 @@ def chat(payload: ChatRequest) -> ChatResponse:
     If retrieval returns no chunks, the LLM is not invoked — a guardrail
     message is returned instead.
     """
+    if not userId:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!"
+        )
+    
     if not payload.question or not payload.question.strip():
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="question must be a non-empty string.",
         )
+    file_pattern = r'\b([\w-]+\.(py|txt|md|pdf|yml|yaml|c|java|asm|h|cpp))\b'    
+    
+    match = re.search(file_pattern, payload.question, re.IGNORECASE)
+
+    # 2. Rút trích tên file (nếu tìm thấy)
+    extracted_filename = match.group(1) if match else None    
 
     # ------------------------------------------------------------------
     # 1 — Retrieve chunks
@@ -105,9 +160,16 @@ def chat(payload: ChatRequest) -> ChatResponse:
     try:
         raw_chunks = retrieve(
             question=payload.question,
+            topic = payload.topic,
+            uploaded_by=None,
+            filename=extracted_filename,
             top_k=payload.top_k,
         )
+        
+        print(f"👉 Qdrant tìm được {len(raw_chunks)} chunks cho file {extracted_filename}")
     except Exception:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Retrieval service failed unexpectedly.",

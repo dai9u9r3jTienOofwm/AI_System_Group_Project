@@ -31,6 +31,7 @@ from qdrant_client.http.models import (
     PointStruct,
     VectorParams,
 )
+from qdrant_client.models import MatchText
 
 from app.core.config import settings
 
@@ -53,7 +54,7 @@ class _FakeEmbeddings:
     or the literal string ``"None"``.
     """
 
-    def __init__(self, vector_size: int = 1536) -> None:
+    def __init__(self, vector_size: int = 1024) -> None:
         self.vector_size = vector_size
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
@@ -83,27 +84,28 @@ def get_embeddings():
     api_key = settings.OPENAI_API_KEY
     if api_key and isinstance(api_key, str) and api_key.strip() not in ("", "None"):
         try:
-            from langchain_openai import OpenAIEmbeddings
+            from langchain_huggingface import HuggingFaceEmbeddings
 
-            logger.info("Using OpenAIEmbeddings (model=text-embedding-ada-002)")
-            return OpenAIEmbeddings(
-                openai_api_key=api_key,
-                model="text-embedding-ada-002",
+            logger.info("Using local HuggingFaceEmbeddings: BAAI/bge-m3")
+
+            return HuggingFaceEmbeddings(
+                model_name="BAAI/bge-m3",
+                model_kwargs={
+                    "device": "cpu"
+                },
+                encode_kwargs={
+                    "normalize_embeddings": True
+                }
             )
+
         except Exception as exc:
             logger.warning(
-                "Failed to initialise OpenAIEmbeddings (%s); "
+                "Failed to initialise HuggingFaceEmbeddings (%s); "
                 "falling back to local fake embeddings.",
                 exc,
             )
+            return FakeEmbeddings(size=1024)
 
-    logger.warning(
-        "No real embedding provider configured — using deterministic local "
-        "fallback (vector_size=%d).  Set OPENAI_API_KEY for production-grade "
-        "embeddings.",
-        settings.QDRANT_VECTOR_SIZE,
-    )
-    return _FakeEmbeddings(vector_size=settings.QDRANT_VECTOR_SIZE)
 
 
 # ===================================================================
@@ -228,22 +230,9 @@ def upsert_documents(chunks: list[dict[str, Any]]) -> int:
 # ===================================================================
 
 
-def search_similar(question: str, top_k: int = 5) -> list[dict[str, Any]]:
+def search_similar(question: str, topic: str = None, uploaded_by: str = None,filename: str = None, top_k: int = 5) -> list[dict[str, Any]]:
     """Search Qdrant for chunks semantically similar to *question*.
-
-    Parameters
-    ----------
-    question : str
-        The user's query text.
-    top_k : int
-        Maximum number of results to return (default 5).
-
-    Returns
-    -------
-    list[dict]
-        Each dict has keys ``text``, ``score``, and ``metadata``.
-        Returns an empty list if *question* is empty or the collection
-        is empty.
+    ...
     """
     if not question or not question.strip():
         logger.warning("search_similar called with empty/blank question")
@@ -252,29 +241,79 @@ def search_similar(question: str, top_k: int = 5) -> list[dict[str, Any]]:
     embeddings_model = get_embeddings()
     client = get_client()
     ensure_collection()
+    
+    # 🌟 1. TẠO RỔ CHỨA ĐIỀU KIỆN 'AND' (MUST)
+    must_conditions = []
+    
+    # Nếu có topic, thêm vào điều kiện bắt buộc
+    if topic:
+        must_conditions.append(
+            FieldCondition(
+                key="metadata.topic",
+                match=MatchValue(value=topic)
+            )
+        )
+        
+    # 🌟 2. TẠO RỔ CHỨA ĐIỀU KIỆN 'OR' (SHOULD)
+    # Mặc định luôn luôn cho phép người dùng đọc tài liệu do 'admin' tải lên
+    should_conditions = [
+        FieldCondition(
+            key="metadata.uploaded_by",
+            match=MatchValue(value="admin")
+        )
+    ]
+    
+    # Nếu có userId truyền vào (khác None), thì cho phép đọc thêm tài liệu của chính User đó
+    if uploaded_by:
+        should_conditions.append(
+            FieldCondition(
+                key="metadata.uploaded_by",
+                match=MatchValue(value=uploaded_by)
+            )
+        )    
+    # Nhét cụm điều kiện OR vào trong cụm điều kiện AND
+    must_conditions.append(Filter(should=should_conditions))
 
+    # Đóng gói bộ lọc cuối cùng
+    chat_filter = Filter(must=must_conditions)
+
+    # 🌟 3. THỰC THI TRUY VẤN VỚI BỘ LỌC ĐỘNG
     query_vector = embeddings_model.embed_query(question)
 
     results = client.query_points(
         collection_name=settings.QDRANT_COLLECTION,
         query=query_vector,
-        limit=top_k,
+        query_filter=chat_filter,
+        limit=top_k * 10,
     )
 
     output = []
     for res in results.points:
         payload = res.payload or {}
+        metadata = payload.get("metadata", {})
+        print(f"SOI METADATA: {metadata}")
+        
+        if filename:
+            meta_filename = str(metadata.get("filename", ""))
+            
+            # Nếu tên file user yêu cầu không khớp với metadata, vứt!
+            if filename not in meta_filename:
+                continue
+
         output.append(
             {
                 "text": payload.get("text", ""),
                 "score": res.score,
-                "metadata": payload.get("metadata", {}),
+                "metadata": metadata,
             }
         )
+        
+        # Lấy đủ số lượng thì dừng
+        if len(output) >= top_k:
+            break
 
-    logger.debug("search_similar returned %d results (top_k=%d)", len(output), top_k)
+    print(f"👉 Hậu kiểm Python: Giữ lại được {len(output)} chunks cho file {filename}")
     return output
-
 
 # ===================================================================
 # Delete (reindex / cleanup)

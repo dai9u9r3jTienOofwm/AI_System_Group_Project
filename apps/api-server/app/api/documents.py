@@ -14,7 +14,17 @@ from app.services.minio_service import get_client
 from app.services.ingestion_service import reindex_document
 from app.services import postgres_client
 from app.services import qdrant_service
+from app.models.document import Document
+from sqlalchemy import distinct
 router = APIRouter()
+
+
+@router.get("/topics")
+def get_available_topics(db: Session = Depends(get_db)):
+    """Get list of unique topics that have documents."""
+    documents = db.query(distinct(Document.topic)).filter(Document.topic.isnot(None)).all()
+    topics = [topic[0] for topic in documents if topic[0]]
+    return {"topics": sorted(topics)}
 
 
 @router.get("",response_model=DocumentListRespond)
@@ -83,4 +93,4 @@ async def reindex_document_endpoint(document_id: str, db: Session = Depends(get_
             status_code= status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail= f"Reindex failed: {str(exc)}",
         )
-    
+

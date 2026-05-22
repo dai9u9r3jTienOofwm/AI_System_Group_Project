@@ -1,0 +1,68 @@
+Every programming language has some kind of way of doing numbers and math. Do not worry: programmers frequently lie about being math geniuses when they really aren’t. If they were math geniuses,
+they would be doing math, not writing buggy web frameworks so they can drive race cars.
+This exercise has lots of math symbols. Let’s name them right away so you know what they are called.
+As you type this one in, say the name. When saying them feels boring you can stop saying them. Here
+are the names:
+• + plus
+• - minus
+• / slash
+• * asterisk
+• % percent
+• < less-than
+• > greater-than
+• <= less-than-equal
+• >= greater-than-equal
+
+
+In Python, if, elif, and else are used to control the flow of a program based on conditions.
+
+An if statement checks the first condition. If that condition is true, Python runs the indented block under it and skips the rest of the chain.
+
+An elif statement means “else if.” It is checked only when the previous if or elif condition is false. You can have multiple elif branches to test different possible cases.
+
+An else statement is the final fallback. It runs only when all previous conditions are false. else does not need a condition.
+
+Python checks the conditions from top to bottom and executes only the first block whose condition is true. After one block runs, the rest of the if-elif-else chain is ignored.
+
+In simple terms: if checks the first possibility, elif checks other possibilities, and else handles everything that does not match.
+
+Here is the next script of Python you will enter, which introduces you to the if-statement. Type this
+in, make it run exactly right, and then we’ll see if your practice has paid off
+
+example.py
+
+people = 20
+cats = 30
+dogs = 15
+
+if people < cats:
+    print("Too many cats! The world is doomed!")
+
+if people > cats:
+    print("Not many cats! The world is saved!")
+
+if people < dogs:
+    print("The world is drooled on!")
+
+if people > dogs:
+    print("The world is dry!")
+
+dogs += 5
+
+if people >= dogs:
+    print("People are greater than or equal to dogs.")
+
+if people <= dogs:
+    print("People are less than or equal to dogs.")
+
+if people == dogs:
+    print("People are dogs.")
+
+
+output should be like:
+
+Too many cats! The world is doomed!
+The world is dry!
+People are greater than or equal to dogs.
+People are less than or equal to dogs.
+People are dogs.

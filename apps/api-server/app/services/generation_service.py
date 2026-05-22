@@ -29,18 +29,20 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------
 
 _SYSTEM_PROMPT = (
-    "You are a helpful technical assistant. Answer the user's question "
-    "based SOLELY on the provided context below.\n\n"
-    "If the context does not contain enough information to answer the "
-    "question, say \"I don't have enough information to answer this "
-    "question\" — do not make up information.\n\n"
-    "When you use information from the context, cite the source document "
-    "filename and chunk index.\n\n"
+    "You are an intelligent technical and coding assistant.\n\n"
+    "Instructions:\n"
+    "1. Use the provided Context below to explain general concepts, theories, and rules.\n"
+    "2. If the user provides specific code snippets, examples, or data directly in their Question, "
+    "you MUST analyze and evaluate that code using your own logical reasoning. Use the theoretical "
+    "knowledge from the Context to support your explanation.\n"
+    "3. Do NOT refuse to evaluate the user's code just because it is not explicitly present in the Context.\n"
+    "4. If the question asks for specific factual knowledge that is neither in the Context nor derivable "
+    "from standard coding logic, only then say \"I don't have enough information to answer this question\".\n\n"
+    "When you use information from the Context, cite the source document filename and chunk index.\n\n"
     "Context:\n{context}\n\n"
     "Question: {question}\n\n"
     "Answer:"
 )
-
 _NO_CONTEXT_MESSAGE = (
     "I don't have enough information to answer this question."
 )
@@ -54,54 +56,40 @@ _MAX_PREVIEW_CHARS = 200
 
 
 def _get_llm():
-    """Return an LLM instance based on the configured provider.
-
-    Resolution order
-    ----------------
-    1. **OpenAI** — if ``settings.LLM_PROVIDER == "openai"`` **and**
-       ``settings.OPENAI_API_KEY`` is a non-empty, non-"None" value,
-       return ``langchain_openai.ChatOpenAI`` (model ``gpt-4o-mini``,
-       temperature 0.3).
-    2. **Error** — raises :class:`RuntimeError` if no real provider is
-       configured or initialisation fails.
-
-    No hard-coded fake LLM is returned — the caller must handle the
-    ``RuntimeError`` appropriately (e.g. return a guardrail message).
-    """
     provider = settings.LLM_PROVIDER
 
-    if provider == "openai":
+    if provider == "deepseek":
         api_key = settings.OPENAI_API_KEY
         api_base = settings.OPENAI_API_BASE
+
         if api_key and isinstance(api_key, str) and api_key.strip() not in ("", "None"):
             try:
                 from langchain_openai import ChatOpenAI
 
-                logger.info("Using ChatOpenAI (model=gpt-4o-mini)")
+                logger.info(
+                    "Using ChatOpenAI model=%s via DeepSeek API",
+                    settings.LLM_MODEL,
+                )
+
                 return ChatOpenAI(
                     openai_api_key=api_key,
                     openai_api_base=api_base,
-                    model="gpt-4o-mini",
-                    temperature=0.3,
+                    model=settings.LLM_MODEL,
+                    temperature=0.0,
                 )
+
             except Exception as exc:
-                logger.warning(
-                    "Failed to initialise ChatOpenAI (%s)", exc,
-                )
+                logger.warning("Failed to initialise ChatOpenAI DeepSeek: %s", exc)
                 raise RuntimeError(
-                    f"LLM provider '{provider}' is configured but "
-                    f"failed to initialise: {exc}",
+                    f"LLM provider '{provider}' failed to initialise: {exc}"
                 ) from exc
-        else:
-            raise RuntimeError(
-                f"LLM provider '{provider}' is configured but "
-                "OPENAI_API_KEY is not set. "
-                "Set OPENAI_API_KEY in your environment or .env file.",
-            )
+
+        raise RuntimeError(
+            "LLM_PROVIDER='deepseek' but OPENAI_API_KEY is not set."
+        )
 
     raise RuntimeError(
-        f"Unsupported LLM_PROVIDER: '{provider}'. "
-        "Only 'openai' is currently supported.",
+        f"Unsupported LLM_PROVIDER: '{provider}'. Supported: 'deepseek'."
     )
 
 
