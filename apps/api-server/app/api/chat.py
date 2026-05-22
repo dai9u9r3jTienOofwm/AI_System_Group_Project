@@ -161,7 +161,7 @@ def chat(payload: ChatRequest,userId: str = Cookie(None)) -> ChatResponse:
         raw_chunks = retrieve(
             question=payload.question,
             topic = payload.topic,
-            uploaded_by=None,
+            uploaded_by=str(userId) if userId else None,
             filename=extracted_filename,
             top_k=payload.top_k,
         )

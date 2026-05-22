@@ -230,10 +230,8 @@ def upsert_documents(chunks: list[dict[str, Any]]) -> int:
 # ===================================================================
 
 
-def search_similar(question: str, topic: str = None, uploaded_by: str = None,filename: str = None, top_k: int = 5) -> list[dict[str, Any]]:
-    """Search Qdrant for chunks semantically similar to *question*.
-    ...
-    """
+def search_similar(question: str, topic: str = None, uploaded_by: str = None, filename: str = None, top_k: int = 5) -> list[dict[str, Any]]:
+    """Search Qdrant for chunks semantically similar to *question*."""
     if not question or not question.strip():
         logger.warning("search_similar called with empty/blank question")
         return []
@@ -245,7 +243,6 @@ def search_similar(question: str, topic: str = None, uploaded_by: str = None,fil
     # 🌟 1. TẠO RỔ CHỨA ĐIỀU KIỆN 'AND' (MUST)
     must_conditions = []
     
-    # Nếu có topic, thêm vào điều kiện bắt buộc
     if topic:
         must_conditions.append(
             FieldCondition(
@@ -254,8 +251,17 @@ def search_similar(question: str, topic: str = None, uploaded_by: str = None,fil
             )
         )
         
+    # 🌟 CÚ CHỐT: Đẩy filename vào Qdrant Filter luôn. 
+    # Thay vì tìm 50 chunks rồi dùng Python lọc, hãy ép Qdrant chỉ tìm trong file này!
+    if filename:
+        must_conditions.append(
+            FieldCondition(
+                key="metadata.filename",
+                match=MatchValue(value=filename)
+            )
+        )
+        
     # 🌟 2. TẠO RỔ CHỨA ĐIỀU KIỆN 'OR' (SHOULD)
-    # Mặc định luôn luôn cho phép người dùng đọc tài liệu do 'admin' tải lên
     should_conditions = [
         FieldCondition(
             key="metadata.uploaded_by",
@@ -263,43 +269,37 @@ def search_similar(question: str, topic: str = None, uploaded_by: str = None,fil
         )
     ]
     
-    # Nếu có userId truyền vào (khác None), thì cho phép đọc thêm tài liệu của chính User đó
     if uploaded_by:
+        # Ép kiểu str() để đảm bảo khớp 100% với kiểu chuỗi "2" lưu trong Qdrant
         should_conditions.append(
             FieldCondition(
                 key="metadata.uploaded_by",
-                match=MatchValue(value=uploaded_by)
+                match=MatchValue(value=str(uploaded_by))
             )
         )    
-    # Nhét cụm điều kiện OR vào trong cụm điều kiện AND
+        
     must_conditions.append(Filter(should=should_conditions))
 
-    # Đóng gói bộ lọc cuối cùng
     chat_filter = Filter(must=must_conditions)
 
-    # 🌟 3. THỰC THI TRUY VẤN VỚI BỘ LỌC ĐỘNG
+    # 🌟 3. THỰC THI TRUY VẤN
     query_vector = embeddings_model.embed_query(question)
 
     results = client.query_points(
         collection_name=settings.QDRANT_COLLECTION,
         query=query_vector,
         query_filter=chat_filter,
-        limit=top_k * 10,
+        limit=top_k, # Bỏ x10 đi, Qdrant đã lọc chuẩn rồi thì chỉ cần lấy đúng top_k
     )
 
     output = []
     for res in results.points:
         payload = res.payload or {}
         metadata = payload.get("metadata", {})
-        print(f"SOI METADATA: {metadata}")
+        print(f"SOI METADATA TỪ QDRANT: {metadata}")
         
-        if filename:
-            meta_filename = str(metadata.get("filename", ""))
-            
-            # Nếu tên file user yêu cầu không khớp với metadata, vứt!
-            if filename not in meta_filename:
-                continue
-
+        # 🌟 KHÔNG CẦN POST-FILTER BẰNG PYTHON NỮA!
+        # Vì Qdrant đã lọc quá chuẩn, cái gì Qdrant trả về ta nhét thẳng vào output
         output.append(
             {
                 "text": payload.get("text", ""),
@@ -307,14 +307,9 @@ def search_similar(question: str, topic: str = None, uploaded_by: str = None,fil
                 "metadata": metadata,
             }
         )
-        
-        # Lấy đủ số lượng thì dừng
-        if len(output) >= top_k:
-            break
 
-    print(f"👉 Hậu kiểm Python: Giữ lại được {len(output)} chunks cho file {filename}")
+    print(f"👉 Qdrant trả về chính xác {len(output)} chunks cho file '{filename}'")
     return output
-
 # ===================================================================
 # Delete (reindex / cleanup)
 # ===================================================================
