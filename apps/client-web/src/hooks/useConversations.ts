@@ -17,6 +17,7 @@ export interface Conversation {
   id: string;
   title: string;
   messages: Message[];
+  topic: string;
   createdAt: string;
   updatedAt: string;
   pinned?: boolean;
@@ -33,6 +34,7 @@ function makeNew(): Conversation {
     id: Date.now().toString(),
     title: 'Cuộc trò chuyện mới',
     messages: [],
+    topic: '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     pinned: false,
@@ -48,7 +50,10 @@ export function useConversations() {
     try {
       const stored = localStorage.getItem(getStorageKey());
       if (stored) {
-        const convs: Conversation[] = JSON.parse(stored);
+        const convs: Conversation[] = JSON.parse(stored).map((c: Conversation) => ({
+          ...c,
+          topic: c.topic ?? '',
+        }));
         if (convs.length > 0) {
           setConversations(convs);
           setActiveId(convs[0].id);
@@ -118,6 +123,12 @@ export function useConversations() {
     );
   }, []);
 
+  const updateTopic = useCallback((id: string, topic: string) => {
+    setConversations(prev =>
+      prev.map(c => c.id === id ? { ...c, topic } : c)
+    );
+  }, []);
+
   const activeConversation = conversations.find(c => c.id === activeId) ?? null;
 
   return {
@@ -127,6 +138,7 @@ export function useConversations() {
     setActiveId,
     createNew,
     updateMessages,
+    updateTopic,
     deleteConversation,
     pinConversation,
     renameConversation,

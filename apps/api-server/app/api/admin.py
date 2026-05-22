@@ -4,6 +4,7 @@
 # - Tạo metadata trong PostgreSQL
 # - Gửi task cho worker
 
+from datetime import datetime
 from uuid import uuid4
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status, Cookie
 from sqlalchemy.orm import Session
@@ -11,7 +12,7 @@ from app.services.document_service import DocumentService
 from app.services.minio_service import get_client
 from app.db.session import get_db
 from app.schemas.document import UploadDocumentRespond
-from minio import Minio 
+from minio import Minio
 from app.models.user import User
 
 router = APIRouter()
@@ -54,9 +55,18 @@ async def upload_file(file: UploadFile = File(...),doc_service: DocumentService 
         )     
         
 @router.get("/user")
-def get_all_users(db:Session = Depends(get_db)):
+def get_all_users(db: Session = Depends(get_db)):
     users = db.query(User).all()
-    return users  
+    return [
+        {
+            "id": u.id,
+            "username": u.username,
+            "email": u.email,
+            "role": u.role,
+            "created_at": (u.created_at.isoformat() + "Z" if isinstance(u.created_at, datetime) else str(u.created_at)) if u.created_at else None,
+        }
+        for u in users
+    ]
 
 @router.post("/users")
 @router.post("/user")

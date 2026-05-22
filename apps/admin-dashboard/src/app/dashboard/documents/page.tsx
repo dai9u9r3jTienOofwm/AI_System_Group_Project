@@ -33,14 +33,14 @@ import { apiClient } from '@/lib/api-client';
  * Tương ứng với cấu trúc trả về từ backend
  */
 interface Document {
-  id: string;           // ID duy nhất
-  name: string;         // Tên file
-  size: number;         // Kích thước file
-  uploadedAt: string;   // Thời gian upload
-  status: 'uploaded' | 'queued' | 'processing' | 'completed' | 'indexed' | 'failed';  // Trạng thái xử lý
-  progress?: number;    // Phần trăm xử lý (0-100)
-  error_message?: string | null;  // Lỗi nếu failed
-  chunk_count?: number | null;    // Số lượng chunks
+  id: string;
+  name: string;
+  size: number;
+  uploadedAt: string;
+  status: 'uploaded' | 'queued' | 'processing' | 'completed' | 'indexed' | 'failed';
+  topic?: string | null;
+  error_message?: string | null;
+  chunk_count?: number | null;
 }
 
 export default function DocumentsPage() {
@@ -157,17 +157,16 @@ export default function DocumentsPage() {
       ),
     },
     {
-      title: 'Tiến Độ',
-      dataIndex: 'progress',
-      key: 'progress',
-      render: (progress: number) =>
-        progress !== undefined ? <Progress percent={progress} /> : '-',
+      title: 'Topic',
+      dataIndex: 'topic',
+      key: 'topic',
+      render: (topic: string) => topic || '-',
     },
     {
       title: 'Ngày Tải Lên',
       dataIndex: 'uploadedAt',
       key: 'uploadedAt',
-      render: (date: string) => new Date(date).toLocaleString('vi-VN'),
+      render: (date: string) => new Date(date).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
     },
     {
       title: 'Hành Động',

@@ -16,6 +16,7 @@ export default function ChatPage() {
     setActiveId,
     createNew,
     updateMessages,
+    updateTopic,
     deleteConversation,
     pinConversation,
     renameConversation,
@@ -78,10 +79,10 @@ export default function ChatPage() {
   useEffect(() => {
     setInput('');
     setError(null);
-    if (messages.length === 0) {
-      setSelectedTopic('');
+    if (activeConversation) {
+      setSelectedTopic(activeConversation.topic || '');
     }
-  }, [activeId, messages.length]);
+  }, [activeId]);
 
   const handleLogout = async () => {
     try {
@@ -235,6 +236,7 @@ export default function ChatPage() {
               value={selectedTopic}
               onChange={(e) => {
                 setSelectedTopic(e.target.value);
+                if (activeId) updateTopic(activeId, e.target.value);
                 if (error) setError(null);
               }}
               disabled={messages.length > 0 || topicsLoading}
