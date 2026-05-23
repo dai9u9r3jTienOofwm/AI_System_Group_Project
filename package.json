@@ -1,0 +1,24 @@
+{
+  "name": "ai_system_group_project",
+  "version": "1.0.0",
+  "description": "Dự án này hướng đến việc xây dựng một hệ thống Retrieval-Augmented Generation (RAG) chuyên sâu cho lĩnh vực kỹ thuật và công nghệ. Hệ thống tập trung vào một tập dữ liệu có độ chính xác cao và giàu tính chuyên môn, chẳng hạn như tài liệu chính thức về Docker, Kubernetes, hoặc các học phần khó trong kiến trúc máy tính và hệ điều hành.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dai9u9r3jTienOofwm/AI_System_Group_Project.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/dai9u9r3jTienOofwm/AI_System_Group_Project/issues"
+  },
+  "homepage": "https://github.com/dai9u9r3jTienOofwm/AI_System_Group_Project#readme",
+  "dependencies": {
+    "stitch-mcp": "^1.3.2"
+  }
+}
