@@ -41,9 +41,12 @@ Sau khi toàn bộ hệ thống container khởi động thành công và log hi
     * **Chức năng:** Giao diện tối cao độc quyền dành cho Admin. Hỗ trợ giám sát toàn bộ danh bạ thành viên, theo dõi tiến độ xử lý tác vụ nền (`ingestion pipeline`) và quản lý kho tri thức chung của hệ thống.
 
 #### 2. Hệ thống kiểm soát và Cơ sở dữ liệu (Backend & DB Infrastructure)
-* **Tài liệu tương tác API (`FastAPI Swagger UI`)**:
+* **Cổng API tập trung (`Nginx API Gateway`)**:
+    * **Đường dẫn:** `http://localhost:8080`
+    * **Chức năng:** API gateway / load balancer cho toàn bộ request từ frontend/admin đến backend. Tất cả API call từ trình duyệt (`localhost:3000` / `localhost:3001`) đều đi qua cổng này. Truy cập Swagger UI tại `http://localhost:8080/docs`.
+* **Tài liệu tương tác API (`FastAPI Swagger UI — debug trực tiếp`)**:
     * **Đường dẫn:** `http://localhost:8000/docs`
-    * **Chức năng:** Bản đồ endpoint của hệ thống, cho phép các thành viên trong nhóm test nhanh các API đăng nhập, upload hoặc CRUD tài khoản trực tiếp qua giao diện UI trực quan.
+    * **Chức năng:** Truy cập Swagger trực tiếp vào backend để debug trong giai đoạn phát triển. Chỉ nên dùng khi cần kiểm tra backend không qua Nginx.
 * **Trình quản lý tệp tin tập trung (`MinIO Object Storage Console`)**:
     * **Đường dẫn:** `http://localhost:9001`
     * **Chức năng:** Quản lý kho lưu trữ tệp tin thô. Sử dụng tài khoản đăng nhập cấu hình trong file `.env` (`MINIO_ACCESS_KEY` & `MINIO_SECRET_KEY`) để kiểm tra các file tài liệu đã được nạp thành công vào bucket `rag-documents` hay chưa.
@@ -54,23 +57,25 @@ Sau khi toàn bộ hệ thống container khởi động thành công và log hi
 ---
 
 ### Lưu ý quan trọng cho các thành viên phát triển:
-1. Tuyệt đối không thay đổi trực tiếp cấu hình cổng (`ports`) trong file `docker-compose.yml` để tránh làm lệch pha kết nối mạng nội bộ giữa Next.js và FastAPI Backend.
-2. Khi thực hiện đăng xuất trên bất kỳ cổng giao diện nào (3000 hoặc 3001), hệ thống sẽ tự động quét sạch cookie và phiên đăng nhập, hãy đảm bảo bạn quay lại đúng trang đăng nhập phù hợp với quyền hạn tài khoản của mình.
+1. Toàn bộ API request từ frontend (`:3000`) và admin (`:3001`) đi qua Nginx gateway tại `http://localhost:8080`. Backend trực tiếp tại `:8000` chỉ dùng để debug phát triển.
+2. Nếu cần rebuild frontend/admin sau khi thay đổi biến `NEXT_PUBLIC_API_URL`, chạy `docker compose up --build` để build lại container.
+3. Khi thực hiện đăng xuất trên bất kỳ cổng giao diện nào (3000 hoặc 3001), hệ thống sẽ tự động quét sạch cookie và phiên đăng nhập, hãy đảm bảo bạn quay lại đúng trang đăng nhập phù hợp với quyền hạn tài khoản của mình.
 
 ## Kiến trúc hệ thống
 
 ```mermaid
 graph TD
-    User((Người dùng)) -->|Hỏi| LB[Nginx Load Balancer]
-    Admin((Quản trị)) -->|Upload| LB
-    LB -->|Routing| FE[Next.js Frontend]
-    FE -->|API Call| BE[FastAPI Backend]
+    User((Người dùng)) -->|Truy cập| FE[client-web :3000]
+    Admin((Quản trị)) -->|Truy cập| AD[admin-dashboard :3001]
+    FE -->|API call| GW[Nginx API Gateway :8080]
+    AD -->|API call| GW
+    GW -->|Proxy| BE[FastAPI Backend :8000]
     BE -->|Lưu file| S3[MinIO Object Storage]
     BE -->|Truy xuất| VDB[Qdrant Vector DB]
     BE -->|Hàng đợi| RD[Redis Queue]
     RD -->|Xử lý| WK[Celery Worker]
     WK -->|Embedding| LLM((AI Model))
-``` 
+```
 ## Đánh giá hệ thống
 
 ## Công nghệ được sử dụng
@@ -85,12 +90,20 @@ graph TD
 | Infrastructure   | Docker, Nginx, Redis                          |
 
 ## Cấu trúc thư mục
-- apps/api-server: Backend xử lý logic RAG.
+- `apps/api-server`: Backend xử lý logic RAG.
 
-- apps/client-web: Giao diện người dùng kiểu Gemini.
+- `apps/client-web`: Giao diện người dùng kiểu Gemini.
 
-- services/ingestion: Worker xử lý file ngầm.
+- `apps/admin-dashboard`: Giao diện quản trị viên.
 
-- infra/: Cấu hình Docker, Nginx và scripts khởi tạo DB.
+- `infra/nginx/`: Cấu hình Nginx API gateway (`nginx.conf`).
+
+- `docs/`: Tài liệu dự án và hướng dẫn mở rộng.
+
+## Tài liệu tham khảo
+
+- [`docs/nginx-local-gateway.md`](docs/nginx-local-gateway.md) — Hướng dẫn mở rộng Nginx gateway cho production (scale, TLS, healthcheck, log format).
+- [`docs/handoffs.md`](docs/handoffs.md) — Nhật ký handoff giữa các phase triển khai Nginx.
+- [`DESIGN.md`](DESIGN.md) — Thiết kế tổng quan hệ thống.
 
 ## Thành viên thực hiện

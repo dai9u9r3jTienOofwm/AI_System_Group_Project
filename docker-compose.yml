@@ -15,24 +15,30 @@ services:
       - OBJECT_STORAGE_ENDPOINT=${MINIO_ENDPOINT}                                                                                                                                                                          
       - VECTOR_DB_URL=${QDRANT_URL}                                                                                                                                                                                        
       - REDIS_URL=${REDIS_URL}                                                                                                                                                                                             
-    command: uvicorn main:app --host 0.0.0.0 --port 8000                                                                                                                                                                   
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
 
-  seeder:
-    build:
-      context: .
-      dockerfile: Dockerfile.seeder
-    container_name: rag_seeder
+  # ---------------------------------------------------------------------------
+  # API gateway / load balancer (demo: single backend node)
+  # ---------------------------------------------------------------------------
+  # Sits in front of the FastAPI backend. All browser/UI API traffic goes
+  # through this service at http://localhost:8080.
+  #
+  # To scale the backend later (docker compose up --scale backend=N):
+  #   1. Remove or change the direct ports "8000:8000" on the backend service
+  #      because N replicas cannot bind the same host port.
+  #   2. Add more `server backend:8000;` entries to the upstream block in
+  #      infra/nginx/nginx.conf (or rely on Docker DNS round-robin).
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
     volumes:
-      - ./dataset:/app
-      - ./app/workers:/app/workers
-    environment:
-      - PYTHONPATH=/app:/app/workers
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - backend      
-      - vector_db  
-      - db
+      - backend
 
-  db:                                                                                                                                                                                                                      
+  db:
     image: postgres:15-alpine                                                                                                                                                                                              
     environment:                                                                                                                                                                                                           
       - POSTGRES_DB=${POSTGRES_DB}                                                                                                                                                                                                  
