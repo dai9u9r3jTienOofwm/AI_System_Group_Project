@@ -1,54 +1,52 @@
-import { useState, useEffect, useCallback } from 'react';
+'use client';
 
-export interface Source {
-  fileName: string;
-  pageNumber?: number;
-  snippet?: string;
-}
+import { useState, useEffect, useCallback } from 'react';
 
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  sources?: Source[];
+  sources?: string[];
 }
 
 export interface Conversation {
   id: string;
   title: string;
-  messages: Message[];
   topic: string;
-  createdAt: string;
+  messages: Message[];
+  pinned: boolean;
   updatedAt: string;
-  pinned?: boolean;
 }
 
-function getStorageKey(): string {
-  if (typeof window === 'undefined') return 'uet_ai_conversations';
-  const userId = localStorage.getItem('userId') || 'guest';
-  return `uet_ai_conversations_${userId}`;
-}
+// Hàm sinh key cô lập theo tài khoản sinh viên
+const getStorageKey = (): string => {
+  if (typeof window === 'undefined') return 'uet_ai_conversations_anonymous';
+  const userId = localStorage.getItem('userId');
+  // Nếu có tài khoản thì găm theo ID, không thì dùng key cô lập tạm thời
+  return userId ? `uet_ai_conversations_${userId}` : 'uet_ai_conversations_anonymous';
+};
 
-function makeNew(): Conversation {
-  return {
-    id: Date.now().toString(),
-    title: 'Cuộc trò chuyện mới',
-    messages: [],
-    topic: '',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    pinned: false,
-  };
-}
+const makeNew = (): Conversation => ({
+  id: Date.now().toString(),
+  title: 'Cuộc trò chuyện mới',
+  topic: '',
+  messages: [],
+  pinned: false,
+  updatedAt: new Date().toISOString(),
+});
 
 export function useConversations() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
 
+  // Lắng nghe sự thay đổi tài khoản để quét sạch giao diện cũ, nạp lịch sử mới
   useEffect(() => {
+    setInitialized(false);
+    const key = getStorageKey();
+    
     try {
-      const stored = localStorage.getItem(getStorageKey());
+      const stored = localStorage.getItem(key);
       if (stored) {
         const convs: Conversation[] = JSON.parse(stored).map((c: Conversation) => ({
           ...c,
@@ -61,17 +59,22 @@ export function useConversations() {
           return;
         }
       }
-    } catch { /* corrupted data — start fresh */ }
+    } catch {
+      /* Dữ liệu lỗi - clear */
+    }
 
     const initial = makeNew();
     setConversations([initial]);
     setActiveId(initial.id);
     setInitialized(true);
-  }, []);
+    
+    // Tín hiệu kích hoạt lại khi userId thay đổi dữ liệu
+  }, [typeof window !== 'undefined' ? localStorage.getItem('userId') : null]);
 
   useEffect(() => {
     if (initialized) {
-      localStorage.setItem(getStorageKey(), JSON.stringify(conversations));
+      const key = getStorageKey();
+      localStorage.setItem(key, JSON.stringify(conversations));
     }
   }, [conversations, initialized]);
 
@@ -94,47 +97,43 @@ export function useConversations() {
     );
   }, []);
 
+  const updateTopic = useCallback((id: string, topic: string) => {
+    setConversations(prev =>
+      prev.map(c => (c.id === id ? { ...c, topic, updatedAt: new Date().toISOString() } : c))
+    );
+  }, []);
+
   const deleteConversation = useCallback((id: string) => {
     setConversations(prev => {
-      const next = prev.filter(c => c.id !== id);
-      if (next.length === 0) {
-        const fresh = makeNew();
-        setActiveId(fresh.id);
-        return [fresh];
+      const filtered = prev.filter(c => c.id !== id);
+      if (filtered.length === 0) {
+        const initial = makeNew();
+        setActiveId(initial.id);
+        return [initial];
       }
-      if (id === prev.find(c => c.id === id)?.id) {
-        setActiveId(next[0].id);
+      if (activeId === id) {
+        setActiveId(filtered[0].id);
       }
-      return next;
+      return filtered;
     });
-  }, []);
+  }, [activeId]);
 
   const pinConversation = useCallback((id: string) => {
     setConversations(prev =>
-      prev.map(c => c.id === id ? { ...c, pinned: !c.pinned } : c)
+      prev.map(c => (c.id === id ? { ...c, pinned: !c.pinned } : c))
     );
   }, []);
 
   const renameConversation = useCallback((id: string, title: string) => {
-    const trimmed = title.trim();
-    if (!trimmed) return;
     setConversations(prev =>
-      prev.map(c => c.id === id ? { ...c, title: trimmed } : c)
+      prev.map(c => (c.id === id ? { ...c, title } : c))
     );
   }, []);
-
-  const updateTopic = useCallback((id: string, topic: string) => {
-    setConversations(prev =>
-      prev.map(c => c.id === id ? { ...c, topic } : c)
-    );
-  }, []);
-
-  const activeConversation = conversations.find(c => c.id === activeId) ?? null;
 
   return {
     conversations,
     activeId,
-    activeConversation,
+    activeConversation: conversations.find(c => c.id === activeId) || null,
     setActiveId,
     createNew,
     updateMessages,

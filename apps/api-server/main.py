@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.workers.celery_app import app as celery_app
-from app.api import chat, health, admin, documents, auth, ingest_status
+from app.api import chat, health, admin, documents, auth, ingest_status, chat_session
 from app.db.init_db import init_db
 
 @asynccontextmanager
@@ -42,3 +42,4 @@ app.include_router(documents.router, prefix="/v1/documents", tags=["Documents"])
 app.include_router(chat.router, prefix="/v1/chat", tags=["Chat"])
 app.include_router(auth.router, prefix="/v1/auth", tags=["Authentication"])
 app.include_router(ingest_status.router, prefix="/v1/ingest", tags=["Ingest Status"])
+app.include_router(chat_session.router,prefix="/v1/chat-sessions", tags=["Chat Sessions"])

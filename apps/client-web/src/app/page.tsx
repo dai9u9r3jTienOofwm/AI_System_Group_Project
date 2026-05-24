@@ -1,14 +1,38 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Menu, Bot, AlertCircle, Paperclip, Loader2 } from 'lucide-react';
+
 import MessageItem from '@/components/MessageItem';
 import Sidebar from '@/components/Sidebar';
+import DocumentPicker from '@/components/DocumentPicker';
 import { useConversations } from '@/hooks/useConversations';
 import type { Message } from '@/hooks/useConversations';
 
+type UploadResponse = {
+  success?: boolean;
+  document_id?: string;
+  id?: string;
+  error?: string;
+  detail?: string;
+  message?: string;
+  data?: {
+    id?: string;
+    document_id?: string;
+  };
+};
+
+type ChatResponse = {
+  answer?: string;
+  sources?: unknown;
+  error?: string;
+  detail?: string;
+  message?: string;
+};
+
 export default function ChatPage() {
+  const conversationsHook = useConversations();
+
   const {
     conversations,
     activeId,
@@ -16,73 +40,87 @@ export default function ChatPage() {
     setActiveId,
     createNew,
     updateMessages,
-    updateTopic,
     deleteConversation,
     pinConversation,
     renameConversation,
-  } = useConversations();
+  } = conversationsHook;
+
+  /**
+   * Dùng optional để tránh lỗi build nếu hook useConversations
+   * chưa khai báo updateTopic trong type.
+   */
+  const updateTopic = (
+    conversationsHook as unknown as {
+      updateTopic?: (conversationId: string, topic: string) => void;
+    }
+  ).updateTopic;
 
   const messages = activeConversation?.messages ?? [];
 
-  // 🌟 KHAI BÁO STATE ĐÃ ĐƯỢC DỌN DẸP SẠCH SẼ (Không còn trùng lặp)
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [input, setInput] = useState('');
-  
-  // State cho File Upload
-  const [isFileUploading, setIsFileUploading] = useState(false);
-  const [uploadingFile, setUploadingFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // State giao diện & Context
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedTopic, setSelectedTopic] = useState<string>('');
+
+  const [attachedDocIds, setAttachedDocIds] = useState<string[]>([]);
+
+  const [selectedTopic, setSelectedTopic] = useState('');
   const [availableTopics, setAvailableTopics] = useState<string[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(true);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
+  const [isFileUploading, setIsFileUploading] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState<File | null>(null);
 
-  // HÀM TẢI TOPIC LÚC MỚI VÀO TRANG
-  const fetchTopics = async () => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const fetchTopics = useCallback(async () => {
+    setTopicsLoading(true);
+
     try {
       const res = await fetch('/api/documents/topics');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setAvailableTopics(data);
-        } else if (data && Array.isArray(data.topics)) {
-          setAvailableTopics(data.topics);
-        } else if (data && data.data && Array.isArray(data.data.topics)) {
-          setAvailableTopics(data.data.topics);
-        } else {
-          setAvailableTopics([]);
-        }
+
+      if (!res.ok) {
+        throw new Error('Không thể tải danh sách chủ đề.');
       }
-    } catch (error) {
-      console.error('Error loading topics:', error);
+
+      const data = await res.json();
+
+      if (Array.isArray(data)) {
+        setAvailableTopics(data);
+      } else if (data && Array.isArray(data.topics)) {
+        setAvailableTopics(data.topics);
+      } else {
+        setAvailableTopics([]);
+      }
+    } catch (err) {
+      console.error('Error loading topics:', err);
+      setAvailableTopics([]);
     } finally {
       setTopicsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchTopics();
   }, []);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    fetchTopics();
+  }, [fetchTopics]);
+
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, isLoading]);
 
   useEffect(() => {
     setInput('');
     setError(null);
-    if (activeConversation) {
-      setSelectedTopic(activeConversation.topic || '');
-    }
-  }, [activeId]);
+    setAttachedDocIds([]);
+
+    const conversationTopic =
+      (activeConversation as unknown as { topic?: string } | undefined)?.topic ?? '';
+
+    setSelectedTopic(conversationTopic);
+  }, [activeId, activeConversation]);
 
   const handleLogout = async () => {
     try {
@@ -90,32 +128,49 @@ export default function ChatPage() {
       localStorage.removeItem('userId');
       localStorage.removeItem('userRole');
       window.location.href = '/login';
-    } catch (error) {
-      console.error('Lỗi khi đăng xuất:', error);
+    } catch (err) {
+      console.error('Lỗi khi đăng xuất:', err);
+      setError('Không thể đăng xuất. Vui lòng thử lại.');
     }
   };
 
-  // 🌟 HÀM XỬ LÝ UPLOAD TÀI LIỆU (Đã kẹp Topic vào thẳng FormData)
+  const triggerFileInput = () => {
+    if (isFileUploading || isLoading) return;
+    fileInputRef.current?.click();
+  };
+
+  const resetFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    const userId = localStorage.getItem('userId') || 'guest';
+
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      setError("Tệp tin quá lớn! Vui lòng chọn tệp dưới 10MB.");
+    if (!selectedTopic) {
+      setError('Vui lòng chọn một Chủ đề trước khi tải tài liệu.');
+      resetFileInput();
       return;
     }
 
-    setUploadingFile(file); 
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Tệp tin quá lớn. Vui lòng chọn tệp dưới 10MB.');
+      resetFileInput();
+      return;
+    }
+    
+    setUploadingFile(file);
     setIsFileUploading(true);
     setError(null);
-    
+
     const formData = new FormData();
     formData.append('file', file);
-    
-    // Kẹp topic hiện tại vào nếu người dùng đã chọn
-    if (selectedTopic) {
-      formData.append('topic', selectedTopic);
-    }
+    formData.append('topic', selectedTopic);
+    formData.append('user_id', userId);
 
     try {
       const res = await fetch('/api/documents/upload', {
@@ -123,45 +178,83 @@ export default function ChatPage() {
         body: formData,
       });
 
-      const result = await res.json();
+      const result = (await res.json().catch(() => ({}))) as UploadResponse;
 
-      if (res.ok && (result.success || result.data)) {
-        // Không cần fetchTopics() nữa vì file đã chui tọt vào đúng Topic rồi
-        console.log(`Đã nạp file ${file.name} thành công!`);
-      } else {
-        setError(`Lỗi upload: ${result.error || 'Xử lý file thất bại'}`);
+      if (!res.ok) {
+        throw new Error(
+          result.error ||
+            result.detail ||
+            result.message ||
+            'Upload tài liệu thất bại.'
+        );
       }
-    } catch (error) {
-      console.error("Lỗi khi tải file lên:", error);
-      setError("Đã xảy ra lỗi đường truyền khi upload tài liệu!");
+
+      const newDocId =
+        result.document_id ||
+        result.id ||
+        result.data?.document_id ||
+        result.data?.id;
+
+      if (!newDocId) {
+        throw new Error('Backend đã upload xong nhưng không trả về document_id.');
+      }
+
+      setAttachedDocIds((prev) => {
+        if (prev.includes(newDocId)) return prev;
+        return [...prev, newDocId];
+      });
+
+      setError(null);
+    } catch (err) {
+      console.error('Lỗi khi tải file lên:', err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Đã xảy ra lỗi khi tải tài liệu lên.'
+      );
     } finally {
       setIsFileUploading(false);
-      setUploadingFile(null); // Dọn dẹp state file sau khi up xong
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setUploadingFile(null);
+      resetFileInput();
     }
   };
 
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
+  const handleChangeTopic = (newTopic: string) => {
+    setSelectedTopic(newTopic);
+    setAttachedDocIds([]);
+
+    if (activeId) {
+      updateTopic?.(activeId, newTopic);
+    }
+
+    if (error) {
+      setError(null);
+    }
   };
 
-  const handleFormSubmit = async (e: { preventDefault(): void }) => {
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || !activeId) return;
+
+    const question = input.trim();
+    const userId = localStorage.getItem('userId') || 'guest';
+
+    if (!question || isLoading || isFileUploading || !activeId) return;
 
     if (!selectedTopic) {
-      setError("Vui lòng chọn một Chủ đề (Topic) ở trên trước khi gửi tin nhắn!");
+      setError('Vui lòng chọn một Chủ đề trước khi nhắn tin.');
       return;
     }
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input.trim(),
+      content: question,
     };
 
-    const updatedMessages = [...messages, userMessage];
+    const updatedMessages: Message[] = [...messages, userMessage];
+
     updateMessages(activeId, updatedMessages);
+
     setInput('');
     setIsLoading(true);
     setError(null);
@@ -169,39 +262,53 @@ export default function ChatPage() {
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          question: input.trim(), 
-          topic: selectedTopic, 
+          question,
+          topic: selectedTopic,
+          document_ids: attachedDocIds,
+          user_id: userId,
         }),
       });
 
-      const data = await res.json();
+      const data = (await res.json().catch(() => ({}))) as ChatResponse;
 
       if (!res.ok || data.error) {
-        throw new Error(data.error ?? 'Lỗi không xác định từ máy chủ.');
+        throw new Error(
+          data.error ||
+            data.detail ||
+            data.message ||
+            'Lỗi từ máy chủ AI.'
+        );
       }
 
-      updateMessages(activeId, [
-        ...updatedMessages,
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: data.answer,
-          sources: data.sources,
-        },
-      ]);
+      const assistantMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.answer || 'AI không trả về nội dung.',
+        sources: data.sources,
+      } as Message;
+
+      updateMessages(activeId, [...updatedMessages, assistantMessage]);
+
+      setAttachedDocIds([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể kết nối đến máy chủ AI.');
+      console.error('Lỗi khi gửi câu hỏi:', err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Không thể kết nối đến máy chủ AI.'
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* SIDEBAR */}
-      <Sidebar 
+    <div className="flex h-screen bg-gray-50 overflow-hidden text-gray-800">
+      <Sidebar
         isOpen={sidebarOpen}
         setIsOpen={setSidebarOpen}
         conversations={conversations}
@@ -214,15 +321,18 @@ export default function ChatPage() {
         onLogout={handleLogout}
       />
 
-      {/* MAIN CHAT AREA */}
       <div className="flex-1 flex flex-col relative w-full max-w-5xl mx-auto border-x bg-white shadow-sm">
-        
-        {/* HEADER CÓ TÍCH HỢP DROPDOWN CHỌN TOPIC */}
         <header className="h-16 flex items-center justify-between px-4 border-b bg-white shrink-0 z-10">
           <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarOpen(true)} className="md:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-md">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-md"
+              aria-label="Mở sidebar"
+            >
               <Menu size={20} />
             </button>
+
             <div className="flex items-center gap-2">
               <Bot className="text-blue-600" size={24} />
               <h1 className="font-semibold text-gray-800">Trợ lý AI RAG</h1>
@@ -230,114 +340,143 @@ export default function ChatPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-600 hidden sm:inline-block">Bối cảnh:</span>
+            <span className="text-sm font-medium text-gray-600 hidden sm:inline-block">
+              Bối cảnh:
+            </span>
+
             <select
-              className="border p-1.5 rounded-md text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              className="border p-1.5 rounded-md text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 text-gray-700"
               value={selectedTopic}
-              onChange={(e) => {
-                setSelectedTopic(e.target.value);
-                if (activeId) updateTopic(activeId, e.target.value);
-                if (error) setError(null);
-              }}
+              onChange={(e) => handleChangeTopic(e.target.value)}
               disabled={messages.length > 0 || topicsLoading}
             >
               <option value="" disabled>
                 {topicsLoading ? '-- Đang tải... --' : '-- Chọn chủ đề --'}
               </option>
-              {availableTopics.map(t => (
-                <option key={t} value={t}>{t}</option>
+
+              {availableTopics.map((topic) => (
+                <option key={topic} value={topic}>
+                  {topic}
+                </option>
               ))}
             </select>
           </div>
         </header>
 
-        {/* THÔNG BÁO LỖI */}
         {error && (
           <div className="bg-red-50 text-red-600 px-4 py-3 flex items-center gap-2 border-b border-red-100 text-sm">
             <AlertCircle size={16} />
-            {error}
+            <span>{error}</span>
           </div>
         )}
 
-        {/* MESSAGE LIST */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 bg-white"
+        >
           {messages.length === 0 ? (
-             <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
-               <Bot size={48} className="opacity-20" />
-               <p>Hãy chọn chủ đề ở góc trên bên phải hoặc đính kèm tài liệu để bắt đầu!</p>
-             </div>
+            <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
+              <Bot size={48} className="opacity-20" />
+              <p className="text-sm text-center">
+                Hãy chọn chủ đề ở bối cảnh hoặc đính kèm tài liệu để bắt đầu!
+              </p>
+            </div>
           ) : (
             messages.map((msg) => (
               <MessageItem key={msg.id} message={msg} />
             ))
           )}
+
           {isLoading && (
-             <div className="flex items-center gap-2 text-gray-400 text-sm italic pl-2">
-               <span className="animate-pulse">AI đang suy nghĩ...</span>
-             </div>
+            <div className="flex items-center gap-2 text-gray-400 text-sm italic pl-2">
+              <span className="animate-pulse">AI đang suy nghĩ...</span>
+            </div>
           )}
         </div>
 
-        {/* 🌟 CHAT INPUT FORM 🌟 */}
-        <div className="p-4 bg-white border-t shrink-0 relative flex flex-col">
-          
-          {/* 🌟 GIAO DIỆN CHIP HIỂN THỊ FILE GIỐNG GEMINI */}
-          {uploadingFile && (
-            <div className="mb-3 flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 w-fit shadow-sm animate-in slide-in-from-bottom-2">
-              <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600">
-                <Loader2 size={18} className="animate-spin" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold text-gray-700 max-w-[200px] truncate">
-                  {uploadingFile.name}
-                </span>
-                <span className="text-xs text-gray-500">
-                  Đang băm nhỏ & nạp vào VectorDB...
-                </span>
-              </div>
-            </div>
-          )}
+        <div className="p-4 bg-white border-t shrink-0 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <DocumentPicker
+              selectedIds={attachedDocIds}
+              onChangeIds={setAttachedDocIds}
+              currentTopic={selectedTopic}
+            />
 
-          <form onSubmit={handleFormSubmit} className="flex gap-2 items-center">
-            
-            <input 
+            <input
               type="file"
               ref={fileInputRef}
               onChange={handleFileUpload}
               className="hidden"
               accept=".pdf,.md,.txt,.py,.c,.cpp,.h,.asm,.yml,.yaml,.json"
-              disabled={isFileUploading}
+              disabled={isFileUploading || isLoading}
             />
-            
+
             <button
               type="button"
               onClick={triggerFileInput}
-              disabled={isFileUploading || isLoading}
-              className="p-3 text-gray-500 hover:text-blue-600 bg-gray-50 hover:bg-blue-50 border border-gray-200 rounded-xl transition-colors disabled:opacity-50"
-              title="Tải tài liệu tri thức lên"
+              disabled={isFileUploading || isLoading || !selectedTopic}
+              className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              title={
+                selectedTopic
+                  ? 'Tải tài liệu mới lên'
+                  : 'Vui lòng chọn chủ đề trước'
+              }
             >
-              <Paperclip size={20} />
+              {isFileUploading ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Paperclip size={12} />
+              )}
+              Tải tài liệu mới
             </button>
+          </div>
 
+          {uploadingFile && (
+            <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 w-fit shadow-sm">
+              <Loader2 size={16} className="animate-spin text-blue-600" />
+              <span className="text-xs font-medium text-gray-700 truncate max-w-[240px]">
+                {uploadingFile.name}
+              </span>
+              <span className="text-[11px] text-gray-400">
+                Đang nạp dữ liệu...
+              </span>
+            </div>
+          )}
+
+          {attachedDocIds.length > 0 && (
+            <div className="text-[11px] text-gray-500">
+              Đã đính kèm {attachedDocIds.length} tài liệu cho câu hỏi tiếp theo.
+            </div>
+          )}
+
+          <form onSubmit={handleFormSubmit} className="flex gap-2 items-center">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={selectedTopic ? `Hỏi AI về ${selectedTopic}...` : "Chọn bối cảnh hoặc tải file lên..."}
+              placeholder={
+                selectedTopic
+                  ? `Hỏi AI về chủ đề ${selectedTopic}...`
+                  : 'Chọn bối cảnh để đặt câu hỏi...'
+              }
               disabled={isLoading || isFileUploading}
-              className="flex-1 border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:bg-gray-50 shadow-sm"
+              className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white disabled:opacity-60"
             />
-            
+
             <button
               type="submit"
-              disabled={isLoading || !input.trim() || isFileUploading}
-              className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 shrink-0 shadow-sm"
+              disabled={
+                isLoading ||
+                isFileUploading ||
+                !input.trim() ||
+                !selectedTopic
+              }
+              className="bg-blue-600 text-white px-6 py-3 text-sm rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
             >
               Gửi
             </button>
           </form>
         </div>
-        
       </div>
     </div>
   );

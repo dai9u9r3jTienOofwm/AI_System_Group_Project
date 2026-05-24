@@ -82,6 +82,7 @@ _DROPDOWN: list[str] = [
     "Frontend Programming",
     "Backend Programming",
     "AI Agent",
+    "Mixture of Experts"
 ]
 
 _FALLBACK_TOPIC_BY_CONTENT_TYPE: dict[str, str] = {

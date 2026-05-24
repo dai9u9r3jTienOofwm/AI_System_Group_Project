@@ -41,6 +41,7 @@ interface Document {
   topic?: string | null;
   error_message?: string | null;
   chunk_count?: number | null;
+  uploaded_by?: string | null;  // 🌟 Thêm field người upload
 }
 
 export default function DocumentsPage() {
@@ -161,6 +162,16 @@ export default function DocumentsPage() {
       dataIndex: 'topic',
       key: 'topic',
       render: (topic: string) => topic || '-',
+    },
+    {
+      title: 'Người Upload',
+      dataIndex: 'uploaded_by',
+      key: 'uploaded_by',
+      render: (uploadedBy: string) => (
+        <span className={uploadedBy === 'admin' ? 'font-semibold text-orange-400' : 'text-slate-300'}>
+          {uploadedBy === 'admin' ? 'admin' : uploadedBy || '-'}
+        </span>
+      ),
     },
     {
       title: 'Ngày Tải Lên',

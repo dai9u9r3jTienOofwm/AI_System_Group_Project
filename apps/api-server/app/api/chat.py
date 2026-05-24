@@ -25,13 +25,14 @@ from app.services.document_service import DocumentService
 from app.schemas.document import UploadDocumentRespond
 from app.db.session import get_db
 from app.models.user import User
+from app.models.chat import ChatSession
 
 
 
 router = APIRouter()
 
 @router.post("/upload", response_model=UploadDocumentRespond)
-async def upload_file(file: UploadFile = File(...),topic: str = Form(None),doc_service: DocumentService = Depends(get_doc_service), userId: str = Cookie(None)):
+async def upload_file(file: UploadFile = File(...),topic: str = Form(None),chat_session_id: str = Form(None),doc_service: DocumentService = Depends(get_doc_service), userId: str = Cookie(None)):
     if not userId:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, 
@@ -53,6 +54,10 @@ async def upload_file(file: UploadFile = File(...),topic: str = Form(None),doc_s
             status_code= status.HTTP_404_NOT_FOUND,
             detail= ".",  
         )   
+    if chat_session_id:
+        session = db.query(ChatSession).filter(ChatSession.id == chat_session_id).first()
+        if session:
+            topic = session.topic
     document_id = str(uuid4())
     object_name = f"documents/{document_id}/{file.filename}"
         
@@ -94,6 +99,8 @@ def retrieve_chunks(payload: RetrieveRequest) -> RetrieveResponse:
     try:
         raw_chunks = retrieve(
             question=payload.question,
+            topic=payload.topic,
+            uploaded_by=payload.user_id,
             top_k=payload.top_k,
         )
     except Exception:
@@ -136,7 +143,10 @@ def chat(payload: ChatRequest,userId: str = Cookie(None)) -> ChatResponse:
     If retrieval returns no chunks, the LLM is not invoked — a guardrail
     message is returned instead.
     """
-    if not userId:
+    # ✅ Ưu tiên user_id từ payload, nếu không có thì dùng từ cookie
+    current_user_id = payload.user_id or userId
+    
+    if not current_user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, 
             detail="Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!"
@@ -161,7 +171,7 @@ def chat(payload: ChatRequest,userId: str = Cookie(None)) -> ChatResponse:
         raw_chunks = retrieve(
             question=payload.question,
             topic = payload.topic,
-            uploaded_by=str(userId) if userId else None,
+            uploaded_by=str(current_user_id) if current_user_id else None,
             filename=extracted_filename,
             top_k=payload.top_k,
         )

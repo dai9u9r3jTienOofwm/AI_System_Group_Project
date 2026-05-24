@@ -8,7 +8,7 @@
 #So sánh trực tiếp chuỗi mật khẩu người dùng nhập với mật khẩu lưu trong DB.
 #{"status": "success", "is_admin": true}
 
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status, Cookie
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.models.user import User
@@ -74,3 +74,20 @@ def login_request(payload: LoginPayload, db:Session = Depends(get_db)):
         )
 
     return {"status": "success", "id": str(user.id), "email": user.email, "is_admin": user.role == "admin"}
+
+
+
+@router.get("/me")
+def get_current_user_profile(userId: str = Cookie(None), db: Session = Depends(get_db)):
+    if not userId:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Chưa đăng nhập")
+        
+    user = db.query(User).filter(User.id == int(userId)).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy tài khoản")
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "role": user.role
+    }

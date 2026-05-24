@@ -38,7 +38,8 @@ export default function DocumentsPage() {
 
   useEffect(() => { loadDocuments(); }, []);
 
-const handleUpload = async (file: File) => {
+  const handleUpload = async (file: File, currentTopic?: string, chatSessionId?: string) => {
+  const userId = localStorage.getItem('userId') || 'guest';
   setUploading(true);
   setUploadProgress(0);
 
@@ -47,25 +48,44 @@ const handleUpload = async (file: File) => {
       timestamp: new Date().toISOString(),
     };
 
-    // Nếu người dùng chọn topic từ dropdown thì gửi lên backend
-    if (selectedTopic) {
+    // 🌟 CÚ CHỐT ĐỒNG BỘ: 
+    // Nếu có cuộc trò chuyện đang active (User luồng chat), ép file mang đúng topic của đoạn chat đó.
+    // Nếu không (Admin luồng quản lý), lấy từ Dropdown Select tùy chọn như cũ.
+    if (currentTopic) {
+      metadata.topic = currentTopic;
+    } else if (selectedTopic) {
       metadata.topic = selectedTopic;
     }
 
-    await apiClient.uploadDocument(file, metadata);
+    // Nếu có mã phiên trò chuyện, truyền kèm lên để Backend lưu khóa ngoại vật lý
+    if (chatSessionId) {
+      metadata.chat_session_id = chatSessionId;
+    }
+
+    // Gửi file và metadata lên Backend
+    const response = await apiClient.uploadDocument(file, metadata);
 
     setUploadProgress(100);
 
+    const activeTopic = currentTopic || selectedTopic;
     message.success(
-      selectedTopic
-        ? `Tải lên tài liệu thành công với topic: ${selectedTopic}`
+      activeTopic
+        ? `Tải lên tài liệu thành công thuộc chủ đề: ${activeTopic}`
         : 'Tải lên tài liệu thành công'
     );
 
+    // 🌟 KHẮC PHỤC LỖI BIẾN MẤT:
     setTimeout(() => {
-      loadDocuments();
+      // Chỉ chạy load toàn bộ kho tài liệu nếu đang đứng ở trang Admin quản lý bảng
+      if (!chatSessionId) {
+        loadDocuments();
+      }
       setUploadProgress(0);
     }, 1000);
+
+    // Trả về ID của tài liệu mới tạo để Component Khung Chat bắt lấy và găm vào giao diện
+    return response?.document_id || response?.id;
+
   } catch (error) {
     const msg =
       typeof error === 'object' && error !== null && 'response' in error
@@ -73,6 +93,7 @@ const handleUpload = async (file: File) => {
         : undefined;
 
     message.error(msg || 'Tải lên tài liệu thất bại');
+    return null;
   } finally {
     setUploading(false);
   }

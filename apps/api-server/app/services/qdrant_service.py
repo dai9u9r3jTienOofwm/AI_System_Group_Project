@@ -21,6 +21,7 @@ import hashlib
 import logging
 from typing import Any
 import uuid
+import re
 
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import (
@@ -37,9 +38,24 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+_embeddings_model = None
+
+
+_collection_ready: bool = False
 # ===================================================================
 # Embedding abstraction
 # ===================================================================
+
+_ALLOWED_FILENAME_EXTENSIONS = "pdf|md|txt|py|c|cpp|h|asm|yml|yaml|json"
+
+def extract_requested_filename(query: str) -> str | None:
+    if not query:
+        return None
+
+    pattern = rf"\b[\w\-.]+\.(?:{_ALLOWED_FILENAME_EXTENSIONS})\b"
+    match = re.search(pattern, query, flags=re.IGNORECASE)
+
+    return match.group(0) if match else None
 
 
 class _FakeEmbeddings:
@@ -68,44 +84,43 @@ class _FakeEmbeddings:
         return [((h[i % 32] + i) % 256) / 255.0 for i in range(self.vector_size)]
 
 
+
 def get_embeddings():
-    """Return an embedding model based on the configured provider.
+    global _embeddings_model
 
-    Resolution order:
+    if _embeddings_model is not None:
+        return _embeddings_model
 
-    1. **OpenAI** — if ``settings.OPENAI_API_KEY`` is a non-empty, non-"None"
-       value, return ``langchain_openai.OpenAIEmbeddings``.
-    2. **Local fallback** — otherwise return a deterministic
-       ``_FakeEmbeddings`` instance sized to ``settings.QDRANT_VECTOR_SIZE``.
+    try:
+        from langchain_huggingface import HuggingFaceEmbeddings
 
-    The local fallback logs a clear warning so operators know production
-    embeddings are not active.
-    """
-    api_key = settings.OPENAI_API_KEY
-    if api_key and isinstance(api_key, str) and api_key.strip() not in ("", "None"):
-        try:
-            from langchain_huggingface import HuggingFaceEmbeddings
+        logger.info("Loading local HuggingFaceEmbeddings: BAAI/bge-m3")
 
-            logger.info("Using local HuggingFaceEmbeddings: BAAI/bge-m3")
+        _embeddings_model = HuggingFaceEmbeddings(
+            model_name="BAAI/bge-m3",
+            model_kwargs={
+                "device": "cpu",
+            },
+            encode_kwargs={
+                "normalize_embeddings": True,
+                "batch_size": 8,
+            },
+        )
 
-            return HuggingFaceEmbeddings(
-                model_name="BAAI/bge-m3",
-                model_kwargs={
-                    "device": "cpu"
-                },
-                encode_kwargs={
-                    "normalize_embeddings": True
-                }
-            )
+        logger.info("Embedding model loaded successfully")
+        return _embeddings_model
 
-        except Exception as exc:
-            logger.warning(
-                "Failed to initialise HuggingFaceEmbeddings (%s); "
-                "falling back to local fake embeddings.",
-                exc,
-            )
-            return FakeEmbeddings(size=1024)
+    except Exception as exc:
+        logger.warning(
+            "Failed to initialise HuggingFaceEmbeddings (%s); "
+            "falling back to deterministic fake embeddings.",
+            exc,
+        )
 
+        _embeddings_model = _FakeEmbeddings(
+            vector_size=settings.QDRANT_VECTOR_SIZE
+        )
+        return _embeddings_model
 
 
 # ===================================================================
@@ -131,23 +146,21 @@ def get_client() -> QdrantClient:
 
 
 def ensure_collection() -> None:
-    """Create the configured Qdrant collection if it does not already exist.
+    global _collection_ready
 
-    Uses the following settings:
-        - **QDRANT_COLLECTION** — collection name
-        - **QDRANT_VECTOR_SIZE** — dimensionality of stored vectors
-        - **Cosine** distance metric (standard for text embeddings)
+    if _collection_ready:
+        return
 
-    Idempotent — safe to call repeatedly.
-    """
     client = get_client()
     collection_name = settings.QDRANT_COLLECTION
     vector_size = settings.QDRANT_VECTOR_SIZE
 
     existing = client.get_collections()
     names = {c.name for c in existing.collections}
+
     if collection_name in names:
         logger.debug("Collection '%s' already exists", collection_name)
+        _collection_ready = True
         return
 
     logger.info(
@@ -155,10 +168,13 @@ def ensure_collection() -> None:
         collection_name,
         vector_size,
     )
+
     client.create_collection(
         collection_name=collection_name,
         vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
     )
+
+    _collection_ready = True
     logger.info("Collection '%s' created successfully", collection_name)
 
 
@@ -230,85 +246,290 @@ def upsert_documents(chunks: list[dict[str, Any]]) -> int:
 # ===================================================================
 
 
-def search_similar(question: str, topic: str = None, uploaded_by: str = None, filename: str = None, top_k: int = 5) -> list[dict[str, Any]]:
-    """Search Qdrant for chunks semantically similar to *question*."""
+ADMIN_UPLOADER_VALUE = "admin"
+DEFAULT_FILENAME_SCROLL_LIMIT = 200
+
+
+def _normalise_optional_str(value: Any) -> str | None:
+    """Return a stripped string, or None for empty values."""
+    if value is None:
+        return None
+    value_str = str(value).strip()
+    return value_str or None
+
+
+def _access_control_condition(uploaded_by: str | None):
+    """
+    Build the access-control part of the Qdrant filter.
+
+    Policy:
+    - Anonymous / unknown current user: can only read admin-uploaded documents.
+    - Logged-in user: can read admin-uploaded documents OR documents uploaded by
+      exactly that same user.
+
+    This prevents user B from retrieving chunks uploaded by user A.
+    """
+    current_user = _normalise_optional_str(uploaded_by)
+
+    admin_condition = FieldCondition(
+        key="metadata.uploaded_by",
+        match=MatchValue(value=ADMIN_UPLOADER_VALUE),
+    )
+
+    if not current_user:
+        return admin_condition
+
+    user_condition = FieldCondition(
+        key="metadata.uploaded_by",
+        match=MatchValue(value=current_user),
+    )
+
+    # Qdrant semantics here:
+    # outer Filter(must=[..., Filter(should=[admin_condition, user_condition])])
+    # means: (...other constraints...) AND (uploaded_by == admin OR uploaded_by == current_user)
+    return Filter(should=[admin_condition, user_condition])
+
+
+def _build_chat_filter(
+    *,
+    topic: str | None = None,
+    uploaded_by: str | None = None,
+    filename: str | None = None,
+) -> Filter:
+    """
+    Build Qdrant payload filter safely.
+
+    Important rule:
+    - If filename is provided, do NOT also require topic. Filename-specific
+      questions must not fail just because the topic classifier guessed a
+      different topic.
+    - Access control is always added.
+    """
+    must_conditions = []
+
+    clean_filename = _normalise_optional_str(filename)
+    clean_topic = _normalise_optional_str(topic)
+
+    if clean_filename:
+        must_conditions.append(
+            FieldCondition(
+                key="metadata.filename",
+                match=MatchValue(value=clean_filename),
+            )
+        )
+    elif clean_topic:
+        must_conditions.append(
+            FieldCondition(
+                key="metadata.topic",
+                match=MatchValue(value=clean_topic),
+            )
+        )
+
+    must_conditions.append(_access_control_condition(uploaded_by))
+    return Filter(must=must_conditions)
+
+
+def _payload_to_result(payload: dict[str, Any], score: float | None = None) -> dict[str, Any] | None:
+    """Convert a Qdrant payload to the result shape used by chat generation."""
+    metadata = payload.get("metadata") or {}
+    text = (
+        payload.get("text")
+        or payload.get("page_content")
+        or payload.get("content")
+        or payload.get("document")
+        or ""
+    )
+
+    if not isinstance(text, str) or not text.strip():
+        return None
+
+    return {
+        "text": text,
+        "score": 1.0 if score is None else score,
+        "metadata": metadata,
+    }
+
+
+def get_chunks_by_filename(
+    filename: str,
+    *,
+    uploaded_by: str | None = None,
+    limit: int = DEFAULT_FILENAME_SCROLL_LIMIT,
+    max_chunks: int = 500,
+) -> list[dict[str, Any]]:
+    """
+    Retrieve chunks for one exact filename using Qdrant payload filtering.
+
+    This path is used when the user explicitly mentions a file name.
+    It does not use embeddings or semantic similarity.
+    """
+
+    clean_filename = _normalise_optional_str(filename)
+    if not clean_filename:
+        return []
+
+    client = get_client()
+    ensure_collection()
+
+    chat_filter = _build_chat_filter(
+        filename=clean_filename,
+        uploaded_by=uploaded_by,
+    )
+
+    output: list[dict[str, Any]] = []
+    next_offset = None
+
+    while True:
+        batch_limit = min(limit, max_chunks - len(output))
+
+        if batch_limit <= 0:
+            logger.warning(
+                "Filename retrieval reached max_chunks=%d for filename=%s",
+                max_chunks,
+                clean_filename,
+            )
+            break
+
+        points, next_offset = client.scroll(
+            collection_name=settings.QDRANT_COLLECTION,
+            scroll_filter=chat_filter,
+            limit=batch_limit,
+            offset=next_offset,
+            with_payload=True,
+            with_vectors=False,
+        )
+
+        if not points:
+            break
+
+        for point in points:
+            payload = point.payload or {}
+            item = _payload_to_result(payload, score=1.0)
+
+            if not item:
+                continue
+
+            item["point_id"] = str(point.id)
+            output.append(item)
+
+        if next_offset is None:
+            break
+
+    output.sort(key=lambda x: x.get("metadata", {}).get("chunk_index", 0))
+
+    logger.info(
+        "Direct filename retrieval: filename=%s uploaded_by=%s chunks=%d",
+        clean_filename,
+        uploaded_by,
+        len(output),
+    )
+
+    if output:
+        first_meta = output[0].get("metadata", {})
+        last_meta = output[-1].get("metadata", {})
+        logger.info(
+            "Direct filename retrieval metadata range: first=%s last=%s",
+            {
+                "filename": first_meta.get("filename"),
+                "document_id": first_meta.get("document_id"),
+                "chunk_index": first_meta.get("chunk_index"),
+            },
+            {
+                "filename": last_meta.get("filename"),
+                "document_id": last_meta.get("document_id"),
+                "chunk_index": last_meta.get("chunk_index"),
+            },
+        )
+
+    print(f"👉 Direct filename retrieval: {clean_filename} => {len(output)} chunks")
+
+    return output
+
+def search_similar(
+    question: str,
+    topic: str | None = None,
+    uploaded_by: str | None = None,
+    filename: str | None = None,
+    top_k: int = 5,
+) -> list[dict[str, Any]]:
+    """
+    Search Qdrant for chunks relevant to the question.
+
+    Rules:
+    - If a filename is provided or detected in the question:
+      retrieve by metadata.filename directly.
+    - Otherwise:
+      run semantic vector search.
+    """
+
     if not question or not question.strip():
         logger.warning("search_similar called with empty/blank question")
         return []
 
+    safe_top_k = max(1, min(int(top_k or 5), 20))
+
+    clean_filename = (
+        _normalise_optional_str(filename)
+        or extract_requested_filename(question)
+    )
+
+    # Critical rule:
+    # filename-specific question must not use semantic search.
+    if clean_filename:
+        return get_chunks_by_filename(
+            clean_filename,
+            uploaded_by=uploaded_by,
+            limit=DEFAULT_FILENAME_SCROLL_LIMIT,
+            max_chunks=500,
+        )
+
     embeddings_model = get_embeddings()
     client = get_client()
     ensure_collection()
-    
-    # 🌟 1. TẠO RỔ CHỨA ĐIỀU KIỆN 'AND' (MUST)
-    must_conditions = []
-    
-    if topic:
-        must_conditions.append(
-            FieldCondition(
-                key="metadata.topic",
-                match=MatchValue(value=topic)
-            )
-        )
-        
-    # 🌟 CÚ CHỐT: Đẩy filename vào Qdrant Filter luôn. 
-    # Thay vì tìm 50 chunks rồi dùng Python lọc, hãy ép Qdrant chỉ tìm trong file này!
-    if filename:
-        must_conditions.append(
-            FieldCondition(
-                key="metadata.filename",
-                match=MatchValue(value=filename)
-            )
-        )
-        
-    # 🌟 2. TẠO RỔ CHỨA ĐIỀU KIỆN 'OR' (SHOULD)
-    should_conditions = [
-        FieldCondition(
-            key="metadata.uploaded_by",
-            match=MatchValue(value="admin")
-        )
-    ]
-    
-    if uploaded_by:
-        # Ép kiểu str() để đảm bảo khớp 100% với kiểu chuỗi "2" lưu trong Qdrant
-        should_conditions.append(
-            FieldCondition(
-                key="metadata.uploaded_by",
-                match=MatchValue(value=str(uploaded_by))
-            )
-        )    
-        
-    must_conditions.append(Filter(should=should_conditions))
 
-    chat_filter = Filter(must=must_conditions)
+    chat_filter = _build_chat_filter(
+        topic=topic,
+        uploaded_by=uploaded_by,
+        filename=None,
+    )
 
-    # 🌟 3. THỰC THI TRUY VẤN
     query_vector = embeddings_model.embed_query(question)
 
     results = client.query_points(
         collection_name=settings.QDRANT_COLLECTION,
         query=query_vector,
         query_filter=chat_filter,
-        limit=top_k, # Bỏ x10 đi, Qdrant đã lọc chuẩn rồi thì chỉ cần lấy đúng top_k
+        limit=safe_top_k,
+        with_payload=True,
     )
 
-    output = []
+    output: list[dict[str, Any]] = []
+
     for res in results.points:
         payload = res.payload or {}
-        metadata = payload.get("metadata", {})
-        print(f"SOI METADATA TỪ QDRANT: {metadata}")
-        
-        # 🌟 KHÔNG CẦN POST-FILTER BẰNG PYTHON NỮA!
-        # Vì Qdrant đã lọc quá chuẩn, cái gì Qdrant trả về ta nhét thẳng vào output
-        output.append(
-            {
-                "text": payload.get("text", ""),
-                "score": res.score,
-                "metadata": metadata,
-            }
+        item = _payload_to_result(payload, score=res.score)
+
+        if not item:
+            continue
+
+        output.append(item)
+
+    logger.info(
+        "Semantic retrieval: topic=%s uploaded_by=%s top_k=%d chunks=%d",
+        topic,
+        uploaded_by,
+        safe_top_k,
+        len(output),
+    )
+
+    if output:
+        logger.info(
+            "Semantic retrieval first metadata: %s",
+            output[0].get("metadata", {}),
         )
 
-    print(f"👉 Qdrant trả về chính xác {len(output)} chunks cho file '{filename}'")
+    print(f"👉 Qdrant semantic retrieval trả về {len(output)} chunks")
+
     return output
 # ===================================================================
 # Delete (reindex / cleanup)

@@ -5,6 +5,9 @@ Pydantic models for request/response of the retrieval and chat endpoints.
 """
 
 from pydantic import BaseModel, Field
+from typing import Optional
+from uuid import UUID
+from datetime import datetime
 
 
 class RetrieveRequest(BaseModel):
@@ -20,6 +23,14 @@ class RetrieveRequest(BaseModel):
         ge=1,
         le=20,
         description="Number of top-K results to retrieve (1–20).",
+    )
+    topic: Optional[str] = Field(
+        default=None,
+        description="Topic filter - optional",
+    )
+    user_id: Optional[str] = Field(
+        default=None,
+        description="User ID - used to filter documents based on ownership",
     )
 
 
@@ -54,7 +65,8 @@ class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1, description="User query text.")
     topic: str
     top_k: int = Field(default=5, ge=1, le=20, description="Number of retrieval results to use as context.")
-    
+    user_id: Optional[str] = Field(default=None, description="User ID - for access control and filtering documents")
+    document_ids: Optional[list[str]] = Field(default=None, description="Optional list of document IDs to include in context")
 
 
 class Source(BaseModel):
@@ -71,3 +83,17 @@ class ChatResponse(BaseModel):
 
     answer: str = Field(..., description="Generated answer text.")
     sources: list[Source] = Field(default_factory=list, description="Source citations for the answer.")
+
+
+class ChatSessionCreate(BaseModel):
+    topic: str = Field(..., description="Topic of chat")
+    title: Optional[str] = "Newchat"
+
+class ChatSessionResponse(BaseModel):
+    id: UUID
+    title: str
+    topic: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True

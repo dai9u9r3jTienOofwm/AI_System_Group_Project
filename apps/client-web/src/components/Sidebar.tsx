@@ -14,7 +14,14 @@ interface SidebarProps {
   onRename: (id: string, title: string) => void;
   onLogout: () => void;
   isOpen: boolean;
-  setIsOpen: (isOpen: boolean) => void; // 🌟 1. Thêm type cho setIsOpen
+  setIsOpen: (isOpen: boolean) => void;
+}
+
+// 🌟 Định nghĩa kiểu dữ liệu User nhận về từ Endpoint /v1/auth/me
+interface UserInfo {
+  username: string;
+  email: string;
+  role: string;
 }
 
 export default function Sidebar({
@@ -27,11 +34,27 @@ export default function Sidebar({
   onRename,
   onLogout,
   isOpen,
-  setIsOpen, // 🌟 2. Nhận đúng tên setIsOpen từ page.tsx truyền vào
+  setIsOpen,
 }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // 🌟 State quản lý thông tin User Profile
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  // 🌟 Fetch thông tin cá nhân khi cấu trúc Sidebar được load
+  useEffect(() => {
+    fetch('/v1/auth/me')
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error('Chưa xác thực session');
+      })
+      .then((data) => setUser(data))
+      .catch((err) => console.error('Profile fetch error:', err))
+      .finally(() => setLoadingUser(false));
+  }, []);
 
   useEffect(() => {
     if (editingId) inputRef.current?.focus();
@@ -54,7 +77,6 @@ export default function Sidebar({
   const unpinned = conversations.filter(c => !c.pinned);
   const hasBothGroups = pinned.length > 0 && unpinned.length > 0;
 
-  // Inline to avoid component-inside-function recreation on each render
   const renderItem = (conv: Conversation) => {
     const isActive = conv.id === activeId;
     const isEditing = editingId === conv.id;
@@ -65,7 +87,7 @@ export default function Sidebar({
         onClick={() => {
           if (isEditing) return;
           onSelect(conv.id);
-          setIsOpen(false); // 🌟 3. Gọi setIsOpen(false) để đóng sidebar trên mobile
+          setIsOpen(false);
         }}
         className={`group flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
           isActive
@@ -130,6 +152,9 @@ export default function Sidebar({
     );
   };
 
+  // Trích xuất chữ cái đầu tiên phục vụ việc vẽ Avatar giống ChatGPT
+  const avatarLetter = user?.username ? user.username.charAt(0).toUpperCase() : 'U';
+
   return (
     <>
       {isOpen && (
@@ -144,6 +169,7 @@ export default function Sidebar({
           ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
+        {/* Header hệ thống */}
         <div className="px-4 py-3.5 flex items-center justify-between border-b border-gray-700/60">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 bg-blue-500 rounded-lg flex items-center justify-center shrink-0">
@@ -156,6 +182,7 @@ export default function Sidebar({
           </button>
         </div>
 
+        {/* Nút hành động thêm cuộc hội thoại mới */}
         <div className="px-3 pt-3 pb-2">
           <button
             onClick={() => { onNew(); setIsOpen(false); }}
@@ -166,6 +193,7 @@ export default function Sidebar({
           </button>
         </div>
 
+        {/* Khu vực hiển thị danh sách lịch sử phiên chat */}
         <div className="flex-1 overflow-y-auto px-2 pb-2">
           {conversations.length === 0 ? (
             <p className="text-gray-500 text-xs text-center py-6">Chưa có cuộc trò chuyện nào</p>
@@ -194,13 +222,51 @@ export default function Sidebar({
           )}
         </div>
 
-        <div className="px-3 py-3 border-t border-gray-700/60">
+        {/* 🌟 PHẦN CẢI TIẾN CỐT LÕI: Khối thông tin User & Đăng xuất (Bám đáy Sidebar) */}
+        <div className="mt-auto border-t border-gray-800 p-3 bg-gray-950/80 flex flex-col gap-2.5">
+          {loadingUser ? (
+            <div className="text-[11px] text-gray-500 px-2 py-1 animate-pulse">
+              Đang tải thông tin tài khoản...
+            </div>
+          ) : user ? (
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                {/* Avatar vòng tròn phong cách ChatGPT */}
+                <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0 select-none shadow-sm">
+                  {avatarLetter}
+                </div>
+                
+                {/* Text thông tin chi tiết */}
+                <div className="flex flex-col overflow-hidden text-left">
+                  <span className="text-xs font-semibold text-gray-200 truncate leading-4">
+                    {user.username}
+                  </span>
+                  <span className="text-[10px] text-gray-400 truncate leading-3 mt-0.5">
+                    {user.email}
+                  </span>
+                </div>
+              </div>
+
+              {/* Badge phân quyền nếu User mang quyền Quản trị hệ thống */}
+              {user.role === 'admin' && (
+                <span className="text-[9px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1 py-0.5 rounded font-mono scale-90 origin-right">
+                  ADMIN
+                </span>
+              )}
+            </div>
+          ) : (
+            <div className="text-[11px] text-amber-500/80 px-1.5">
+              ⚠ Chế độ Khách (Guest)
+            </div>
+          )}
+
+          {/* Nút đăng xuất nguyên bản giữ nguyên liên kết xử lý */}
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-gray-400 hover:text-red-400 hover:bg-gray-800 text-sm transition-colors"
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-gray-800/60 text-xs font-medium transition-all"
           >
-            <LogOut size={14} />
-            Đăng xuất
+            <LogOut size={13} className="shrink-0" />
+            Đăng xuất khỏi hệ thống
           </button>
         </div>
       </aside>
