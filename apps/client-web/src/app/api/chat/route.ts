@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
         'Cookie': cookieHeader, 
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(180000),
     });
 
     const data = await response.json();

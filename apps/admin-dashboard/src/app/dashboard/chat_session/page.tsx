@@ -55,22 +55,13 @@ export default function ChatSessionsPage() {
     try {
       // ✅ Gọi API backend thay vì đọc localStorage
       const response = await fetch('/api/chat_sessions/', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Gửi kèm cookies để authenticate
+        cache: 'no-store',
       });
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Chưa đăng nhập hoặc phiên hết hạn');
-        }
-        throw new Error(`API error: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
 
       const sessions: ChatSession[] = await response.json();
-      setSessions(sessions);
+      setSessions(Array.isArray(sessions) ? sessions : []);
     } catch (err) {
       console.error('Lỗi tải chat sessions:', err);
       message.error('Không thể tải danh sách phiên trò chuyện từ server');
@@ -89,27 +80,16 @@ export default function ChatSessionsPage() {
   /**
    * Xử lý xóa vĩnh viễn một phiên chat kèm theo cơ chế cascade xóa các tin nhắn con
    */
-  const handleDeleteSession = async (sessionId: string, userId: number) => {
+  const handleDeleteSession = async (sessionId: string) => {
     try {
-      if (typeof window !== 'undefined') {
-        // Định vị chính xác Key lưu trữ của User sở hữu phiên chat đó
-        const key = `uet_ai_conversations_${userId}`;
-        const storedData = localStorage.getItem(key);
-
-        if (storedData) {
-          const conversations = JSON.parse(storedData);
-          if (Array.isArray(conversations)) {
-            // Lọc bỏ cuộc trò chuyện có ID trùng với sessionId cần xóa
-            const updatedConversations = conversations.filter((c: any) => c.id !== sessionId);
-            
-            // Cập nhật lại vào localStorage của User đó
-            localStorage.setItem(key, JSON.stringify(updatedConversations));
-          }
-        }
-      }
-
+      const res = await fetch('/api/chat_sessions/', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
+      });
+      if (!res.ok) throw new Error('Delete failed');
       message.success('Xóa phiên trò chuyện thành công');
-      loadChatSessions(); // Gọi lại hàm quét localStorage để làm mới Table
+      loadChatSessions();
     } catch {
       message.error('Xóa phiên trò chuyện thất bại');
     }
@@ -162,7 +142,7 @@ export default function ChatSessionsPage() {
         <Popconfirm
           title="Xác nhận xóa phiên chat"
           description="Hành động này sẽ xóa toàn bộ tin nhắn con bên trong. Bạn chắc chắn chứ?"
-          onConfirm={() => handleDeleteSession(record.id, record.user_id)}
+          onConfirm={() => handleDeleteSession(record.id)}
           okText="Xóa vĩnh viễn"
           cancelText="Hủy"
           okButtonProps={{ danger: true }}

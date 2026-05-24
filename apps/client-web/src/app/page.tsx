@@ -74,6 +74,7 @@ export default function ChatPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const savedSessionIds = useRef<Set<string>>(new Set());
 
   const fetchTopics = useCallback(async () => {
     setTopicsLoading(true);
@@ -258,6 +259,19 @@ export default function ChatPage() {
     setInput('');
     setIsLoading(true);
     setError(null);
+
+    // Lưu session vào DB lần đầu tiên mỗi conversation
+    if (activeId && !savedSessionIds.current.has(activeId)) {
+      savedSessionIds.current.add(activeId);
+      fetch('/api/chat-sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topic: selectedTopic,
+          title: question.slice(0, 50),
+        }),
+      }).catch(() => {});
+    }
 
     try {
       const res = await fetch('/api/chat', {

@@ -169,7 +169,7 @@ export default function DocumentsPage() {
       key: 'uploaded_by',
       render: (uploadedBy: string) => (
         <span className={uploadedBy === 'admin' ? 'font-semibold text-orange-400' : 'text-slate-300'}>
-          {uploadedBy === 'admin' ? 'admin' : uploadedBy || '-'}
+          {uploadedBy === 'admin' ? 'admin' : uploadedBy ? `user_${uploadedBy}` : '-'}
         </span>
       ),
     },

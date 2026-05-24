@@ -254,11 +254,7 @@ export default function Sidebar({
                 </span>
               )}
             </div>
-          ) : (
-            <div className="text-[11px] text-amber-500/80 px-1.5">
-              ⚠ Chế độ Khách (Guest)
-            </div>
-          )}
+          ) : null}
 
           {/* Nút đăng xuất nguyên bản giữ nguyên liên kết xử lý */}
           <button

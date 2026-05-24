@@ -14,6 +14,7 @@ from app.db.session import get_db
 from app.schemas.document import UploadDocumentRespond
 from minio import Minio
 from app.models.user import User
+from app.models.chat import ChatSession
 
 router = APIRouter()
 
@@ -112,3 +113,26 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     db.delete(user)
     db.commit()
     return {"status": "success","detail": "User deleted successfully"}
+
+@router.get("/chat_sessions")
+def get_all_chat_sessions(db: Session = Depends(get_db)):
+    sessions = db.query(ChatSession).order_by(ChatSession.created_at.desc()).all()
+    return [
+        {
+            "id": s.id,
+            "user_id": s.user_id,
+            "title": s.title,
+            "topic": s.topic,
+            "created_at": (s.created_at.isoformat() + "Z" if isinstance(s.created_at, datetime) else str(s.created_at)),
+        }
+        for s in sessions
+    ]
+
+@router.delete("/chat_sessions/{session_id}")
+def delete_chat_session(session_id: str, db: Session = Depends(get_db)):
+    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    db.delete(session)
+    db.commit()
+    return {"status": "success", "detail": "Session deleted"}

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Cookie
 from sqlalchemy.orm import Session
 from typing import List
+from uuid import uuid4
 from app.db.session import get_db
 from app.schemas.chat import ChatSessionResponse, ChatSessionCreate
 from app.models.chat import ChatSession
@@ -16,7 +17,8 @@ def create_new_chat(payload: ChatSessionCreate,db: Session = Depends(get_db), us
     
     try:
         new_session = ChatSession(
-            user_id=int(userId), 
+            id=str(uuid4()),
+            user_id=int(userId),
             topic=payload.topic,
             title=payload.title
         )

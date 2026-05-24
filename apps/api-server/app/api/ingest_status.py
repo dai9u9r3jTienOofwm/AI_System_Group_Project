@@ -69,6 +69,7 @@ def _doc_to_frontend(doc) -> dict:
             doc.created_at.isoformat() + "Z" if isinstance(doc.created_at, datetime)
             else str(doc.created_at)
         ),
+        "uploaded_by": doc.uploaded_by,
         "error_message": doc.error_message,
         "chunk_count": doc.chunk_count,
     }
