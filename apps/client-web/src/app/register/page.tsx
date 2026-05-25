@@ -49,7 +49,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
-      <div className="bg-gray-900 border border-white/10 rounded-2xl shadow-2xl w-full max-w-md p-8">
+      <div className="bg-gray-900 border border-white/10 rounded-2xl shadow-2xl w-full max-w-[448px] min-w-[320px] p-8">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-4">

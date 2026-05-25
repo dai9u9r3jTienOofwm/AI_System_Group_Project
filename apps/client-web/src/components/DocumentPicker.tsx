@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Paperclip, X, FileText, RefreshCw, ChevronDown, UploadCloud } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 
 interface Doc {
   id: string;
@@ -61,12 +60,14 @@ export default function DocumentPicker({ selectedIds, onChangeIds, currentTopic 
     }
   }, [currentTopic]);
 
-  useEffect(() => {
-    setDocs([]);
+  const handleToggle = () => {
     if (open) {
+      setOpen(false);
+    } else {
+      setOpen(true);
       fetchDocs();
     }
-  }, [open, fetchDocs]);
+  };
 
   const toggle = (id: string) => {
     onChangeIds(
@@ -179,27 +180,27 @@ export default function DocumentPicker({ selectedIds, onChangeIds, currentTopic 
     <div ref={containerRef} className="relative inline-block">
       
       {selectedDocs.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-2.5">
+        <div className="flex flex-wrap gap-2 mb-3">
           {selectedDocs.map(doc => (
             <span
               key={doc.id}
-              className="inline-flex items-center gap-1 bg-gray-100 border border-gray-200 text-gray-700 text-[11px] px-2 py-0.5 rounded-md"
+              className="inline-flex items-center gap-1 bg-surface-container border border-border-light text-text-emphasis text-small-base font-small-base px-3 py-1 rounded-full shadow-floating"
             >
-              <FileText size={11} className="text-blue-600" />
-              <span className="max-w-[140px] truncate">{doc.name}</span>
+              <span className="material-symbols-outlined text-[14px] text-text-secondary">description</span>
+              <span className="max-w-[140px] truncate">{doc.fileName}</span>
               <button
                 type="button"
                 onClick={() => toggle(doc.id)}
-                className="text-gray-400 hover:text-red-500 ml-0.5 transition-colors"
+                className="hover:text-negative ml-1 transition-colors flex items-center cursor-pointer"
               >
-                <X size={11} />
+                <span className="material-symbols-outlined text-[14px]">close</span>
               </button>
             </span>
           ))}
           <button
             type="button"
             onClick={() => onChangeIds([])}
-            className="text-[11px] text-gray-400 hover:text-red-500 transition-colors ml-1"
+            className="text-xs text-text-secondary hover:text-negative transition-colors ml-1 font-nav-link-inactive cursor-pointer"
           >
             Xóa hết
           </button>
@@ -208,68 +209,64 @@ export default function DocumentPicker({ selectedIds, onChangeIds, currentTopic 
 
       <button
         type="button"
-        onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border font-medium transition-all ${
-          selectedIds.length > 0
-            ? 'bg-blue-50 border-blue-200 text-blue-600'
-            : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-gray-300 hover:text-gray-700'
+        onClick={handleToggle}
+        className={`bg-input-surface text-text-emphasis font-nav-link-inactive rounded-full py-1.5 px-4 flex items-center gap-2 border hover:bg-[#282828] transition-colors shadow-floating cursor-pointer ${
+          selectedIds.length > 0 ? 'border-primary text-primary' : 'border-border-gray'
         }`}
       >
-        <Paperclip size={12} />
-        Quản lý & Đính kèm tài liệu
+        <span className="material-symbols-outlined text-[18px] text-text-secondary">attach_file</span>
+        Tài liệu tham khảo
         {selectedIds.length > 0 && (
-          <span className="bg-blue-600 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold leading-none">
+          <span className="bg-primary-container text-black text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold leading-none ml-1">
             {selectedIds.length}
           </span>
         )}
-        <ChevronDown size={12} className={`opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <span className="material-symbols-outlined text-[18px] text-text-secondary ml-1">expand_more</span>
       </button>
 
       {/* 🌟 POPOVER BẢNG QUẢN LÝ TÀI LIỆU (CÓ UPLOAD & XÓA) */}
       {open && (
-        <div className="absolute bottom-full left-0 mb-2 w-[550px] max-w-[90vw] bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-1 duration-150 flex flex-col">
-          
-          {/* Header & Công cụ tải file */}
-          <div className="p-4 border-b border-gray-100 bg-gray-50 flex flex-col gap-4 shrink-0">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-gray-800">Tải lên tài liệu: [{currentTopic}]</h3>
-              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <X size={18} />
-              </button>
-            </div>
+        <div className="absolute bottom-full left-0 mb-3 w-80 bg-surface-container border border-border-gray rounded-xl shadow-dialog z-50 overflow-hidden">
+          <div className="px-4 py-3 border-b border-border-gray flex items-center justify-between bg-panel-surface">
+            <span className="text-sm font-body-bold text-text-emphasis">Chọn tài liệu tham khảo</span>
+            <button
+              onClick={() => setOpen(false)}
+              className="text-text-secondary hover:text-text-emphasis transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+            </button>
+          </div>
 
-            <div className="flex items-center gap-3">
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleUpload} 
-                className="hidden" 
-                accept=".pdf,.md,.txt,.docx,.csv" 
-              />
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 text-sm font-medium transition-colors disabled:opacity-50"
-              >
-                <UploadCloud size={16} /> Chọn tài liệu tải lên
-              </button>
-              <button 
-                onClick={fetchDocs}
-                disabled={loading || isUploading}
-                className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 text-sm font-medium transition-colors ml-auto disabled:opacity-50"
-              >
-                <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Làm tươi
-              </button>
-            </div>
-
-            {/* Thanh tiến độ */}
-            {(isUploading || uploadProgress > 0) && (
-              <div className="flex flex-col gap-1.5 mt-2">
-                <div className="w-full bg-gray-200 rounded-full h-4 relative overflow-hidden">
-                  <div 
-                    className="bg-blue-500 h-4 rounded-full transition-all duration-300 flex items-center justify-center" 
-                    style={{ width: `${uploadProgress}%` }}
-                  >
+          <div className="max-h-64 overflow-y-auto bg-surface-container">
+            {loading ? (
+              <div className="p-6 text-center text-text-secondary text-sm flex flex-col items-center">
+                <span className="material-symbols-outlined text-[24px] animate-spin mb-2">refresh</span>
+                Đang tải danh sách tài liệu...
+              </div>
+            ) : docs.length === 0 ? (
+              <div className="p-6 text-center text-text-secondary text-sm flex flex-col items-center">
+                <span className="material-symbols-outlined text-[32px] mb-2 opacity-50">description</span>
+                Chưa có tài liệu nào trong hệ thống.
+                <br />
+                <span className="text-xs mt-1">Admin cần tải lên tài liệu trước.</span>
+              </div>
+            ) : (
+              docs.map(doc => (
+                <label
+                  key={doc.id}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-surface-variant cursor-pointer transition-colors border-b border-border-gray/30 last:border-0"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(doc.id)}
+                    onChange={() => toggle(doc.id)}
+                    className="rounded bg-background border-border-light checked:bg-primary-container accent-primary-container shrink-0 w-4 h-4"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-body-base text-text-emphasis truncate">{doc.fileName}</p>
+                    {doc.status && (
+                      <p className="text-xs text-text-secondary capitalize">{doc.status}</p>
+                    )}
                   </div>
                   <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-gray-800 mix-blend-overlay">
                     {uploadProgress}%
@@ -355,14 +352,14 @@ export default function DocumentPicker({ selectedIds, onChangeIds, currentTopic 
           </div>
 
           {!loading && docs.length > 0 && selectedIds.length > 0 && (
-            <div className="px-4 py-2 border-t border-gray-100 bg-gray-50 flex justify-between items-center text-xs shrink-0">
-              <span className="text-gray-500 font-medium">
-                Đang đính kèm {selectedIds.length}/{docs.length} file vào Chat
+            <div className="px-4 py-3 border-t border-border-gray flex justify-between items-center bg-panel-surface">
+              <span className="text-xs text-text-secondary font-small-base">
+                Đã chọn {selectedIds.length}/{docs.length}
               </span>
               <button
                 type="button"
                 onClick={() => onChangeIds([])}
-                className="text-red-500 hover:text-red-700 font-bold transition-colors"
+                className="text-xs text-negative hover:text-error transition-colors font-small-bold cursor-pointer"
               >
                 Bỏ đính kèm tất cả
               </button>

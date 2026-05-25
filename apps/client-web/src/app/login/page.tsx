@@ -60,80 +60,91 @@ export default function LoginPage() {
 };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
-      <div className="bg-gray-900 border border-white/10 rounded-2xl shadow-2xl w-full max-w-md p-8">
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mb-4">
-            <Bot size={32} className="text-white" />
+    <div className="flex-1 min-h-screen bg-background flex items-center justify-center p-gutter md:p-margin-desktop w-full">
+      <main className="w-full max-w-[450px]">
+        <div className="bg-[#181818] rounded-xl p-xl shadow-dialog flex flex-col items-center border border-[#282828]">
+          <div className="mb-lg flex flex-col items-center">
+            <div className="w-16 h-16 bg-surface-container rounded-full flex items-center justify-center mb-md border border-[#282828]">
+              <span className="material-symbols-outlined text-4xl text-text-emphasis" style={{ fontVariationSettings: "'FILL' 1" }}>
+                smart_toy
+              </span>
+            </div>
+            <h1 className="font-section-title text-section-title text-text-emphasis text-center mb-xs">Đăng nhập vào UET AI</h1>
+            <p className="font-body-base text-body-base text-text-secondary text-center">Đăng nhập để tiếp tục</p>
           </div>
-          <h1 className="text-2xl font-bold text-white">UET AI Assistant</h1>
-          <p className="text-gray-400 text-sm mt-1">Đăng nhập để tiếp tục</p>
+
+          <form onSubmit={handleSubmit} className="w-full flex flex-col gap-lg">
+            <div className="flex flex-col gap-sm">
+              <label className="font-body-bold text-body-bold text-text-emphasis" htmlFor="username">Tài khoản</label>
+              <div className="relative w-full">
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary">
+                  person
+                </span>
+                <input 
+                  className="w-full bg-[#1f1f1f] text-text-emphasis placeholder-text-secondary rounded-full py-3 pl-12 pr-4 shadow-inset-input focus:outline-none focus:ring-1 focus:ring-primary-container transition-all" 
+                  id="username" 
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Nhập tên đăng nhập" 
+                  autoComplete="username"
+                  type="text"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-sm">
+              <label className="font-body-bold text-body-bold text-text-emphasis" htmlFor="password">Mật khẩu</label>
+              <div className="relative w-full">
+                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-text-secondary">
+                  lock
+                </span>
+                <input 
+                  className="w-full bg-[#1f1f1f] text-text-emphasis placeholder-text-secondary rounded-full py-3 pl-12 pr-4 shadow-inset-input focus:outline-none focus:ring-1 focus:ring-primary-container transition-all" 
+                  id="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Nhập mật khẩu" 
+                  autoComplete="current-password"
+                  type="password"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-error-container/20 border border-error/50 text-error text-sm rounded-lg px-4 py-3">
+                {error}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between mt-sm">
+              <label className="flex items-center gap-xs cursor-pointer group">
+                <input className="w-4 h-4 rounded border-border-light bg-[#1f1f1f] text-primary-container focus:ring-primary-container focus:ring-offset-background cursor-pointer" type="checkbox"/>
+                <span className="font-small-base text-small-base text-text-secondary group-hover:text-text-emphasis transition-colors">Ghi nhớ đăng nhập</span>
+              </label>
+              <a className="font-small-bold text-small-bold text-text-emphasis hover:text-primary-container transition-colors underline-offset-2 hover:underline cursor-pointer" href="#">Quên mật khẩu?</a>
+            </div>
+
+            <button 
+              type="submit"
+              disabled={isLoading || !username.trim() || !password.trim()}
+              className="w-full bg-primary-container hover:bg-[#3be477] text-on-primary-fixed rounded-full py-4 mt-md font-button-uppercase text-button-uppercase uppercase tracking-[1.5px] shadow-[0_4px_12px_rgba(30,215,96,0.3)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" 
+            >
+              {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+            </button>
+          </form>
+
+          <div className="w-full h-px bg-[#282828] my-lg"></div>
+
+          <div className="text-center font-body-base text-body-base text-text-secondary">
+            Bạn chưa có tài khoản? 
+            <a className="text-text-emphasis font-body-bold hover:text-primary-container transition-colors underline-offset-2 hover:underline ml-1 cursor-pointer" href="/register">Đăng ký</a>
+          </div>
+
+          <div className="mt-xl text-center">
+            <p className="font-micro text-micro text-border-light">UET AI System — Nhóm dự án môn học</p>
+          </div>
         </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">
-              Tên đăng nhập
-            </label>
-            <div className="relative">
-              <User size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Nhập tên đăng nhập"
-                autoComplete="username"
-                className="w-full pl-9 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">
-              Mật khẩu
-            </label>
-            <div className="relative">
-              <Lock size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Nhập mật khẩu"
-                autoComplete="current-password"
-                className="w-full pl-9 pr-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-            </div>
-          </div>
-
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg px-4 py-3">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={isLoading || !username.trim() || !password.trim()}
-            className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-900 disabled:text-blue-500 text-white font-medium py-2.5 rounded-lg transition-colors text-sm mt-2"
-          >
-            {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-gray-400 mt-6">
-          Chưa có tài khoản?{' '}
-          <button
-            onClick={() => router.push('/register')}
-            className="text-blue-500 hover:text-blue-400 font-medium transition-colors"
-          >
-            Đăng ký tại đây
-          </button>
-        </p>
-        <p className="text-center text-xs text-gray-600 mt-2">
-          UET AI System — Nhóm dự án môn học
-        </p>
-      </div>
+      </main>
     </div>
   );
 }

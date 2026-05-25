@@ -6,7 +6,7 @@ import AdminGlobalSearch from './GlobalSearch';
 export default function AdminTopbar() {
   return (
     <header className="sticky top-0 h-16 bg-white/5 backdrop-blur-xl border-b border-white/10 z-30 flex items-center justify-between px-6 w-full">
-      <div className="flex-1 max-w-md">
+      <div className="flex-1 max-w-[448px]">
         <AdminGlobalSearch />
       </div>
 

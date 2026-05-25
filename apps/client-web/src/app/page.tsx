@@ -321,7 +321,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden text-gray-800">
+    <>
       <Sidebar
         isOpen={sidebarOpen}
         setIsOpen={setSidebarOpen}
@@ -335,27 +335,35 @@ export default function ChatPage() {
         onLogout={handleLogout}
       />
 
-      <div className="flex-1 flex flex-col relative w-full max-w-5xl mx-auto border-x bg-white shadow-sm">
-        <header className="h-16 flex items-center justify-between px-4 border-b bg-white shrink-0 z-10">
-          <div className="flex items-center gap-3">
+      {/* Main Content Canvas */}
+      <main className="flex-1 flex flex-col h-full bg-background relative overflow-hidden">
+        {/* Top App Bar (Mobile / Status) */}
+        <header className="flex justify-between items-center w-full px-lg h-16 sticky top-0 z-40 bg-background/90 backdrop-blur-md">
+          <div className="md:hidden flex items-center gap-sm">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-md"
-              aria-label="Mở sidebar"
+              className="text-text-secondary hover:text-text-emphasis transition-colors shrink-0 cursor-pointer"
+              aria-label="Mở menu"
             >
               <Menu size={20} />
             </button>
-
-            <div className="flex items-center gap-2">
-              <Bot className="text-blue-600" size={24} />
-              <h1 className="font-semibold text-gray-800">Trợ lý AI RAG</h1>
+            <div className="w-6 h-6 ml-2 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container">
+              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1", fontSize: "16px" }}>robot_2</span>
             </div>
+            <span className="text-feature-heading font-feature-heading text-text-emphasis">UET AI</span>
           </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-600 hidden sm:inline-block">
-              Bối cảnh:
+          <div className="hidden md:flex text-feature-heading font-feature-heading text-text-emphasis tracking-tight">
+            {activeConversation?.title ?? 'Cuộc trò chuyện mới'}
+          </div>
+          <div className="flex items-center gap-xs text-small-base font-small-base text-text-secondary">
+            <span
+              className={`w-2 h-2 rounded-full inline-block ${
+                isLoading ? 'bg-warning animate-pulse' : 'bg-primary-container'
+              }`}
+            />
+            <span className="hidden sm:inline">
+              {isLoading ? 'Đang suy nghĩ...' : 'Sẵn sàng'}
             </span>
 
             <select
@@ -377,121 +385,81 @@ export default function ChatPage() {
           </div>
         </header>
 
-        {error && (
-          <div className="bg-red-50 text-red-600 px-4 py-3 flex items-center gap-2 border-b border-red-100 text-sm">
-            <AlertCircle size={16} />
-            <span>{error}</span>
-          </div>
-        )}
-
-        <div
-          ref={scrollRef}
-          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 bg-white"
-        >
+        {/* Empty State / Messages */}
+        <div ref={scrollRef} className="flex-1 flex flex-col px-lg overflow-y-auto pb-40 scroll-smooth">
           {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4">
-              <Bot size={48} className="opacity-20" />
-              <p className="text-sm text-center">
-                Hãy chọn chủ đề ở bối cảnh hoặc đính kèm tài liệu để bắt đầu!
+            <div className="flex-1 flex flex-col items-center justify-center text-center">
+              <div className="w-16 h-16 rounded-full bg-[#f0f0f0] flex items-center justify-center mb-lg shadow-dialog">
+                <span className="text-3xl">🤖</span>
+              </div>
+              <h1 className="w-full text-section-title font-section-title text-text-emphasis mb-md tracking-tight">Tôi có thể giúp gì cho bạn?</h1>
+              <p className="w-full text-body-base font-body-base text-text-secondary max-w-[448px] mx-auto leading-relaxed">
+                Hệ thống RAG đã sẵn sàng. Đặt câu hỏi dựa trên tài liệu đã được tải lên, hoặc chọn tài liệu cụ thể bằng nút <span className="text-announcement cursor-pointer hover:underline">Tài liệu tham khảo</span>.
               </p>
             </div>
           ) : (
-            messages.map((msg) => (
-              <MessageItem key={msg.id} message={msg} />
-            ))
-          )}
-
-          {isLoading && (
-            <div className="flex items-center gap-2 text-gray-400 text-sm italic pl-2">
-              <span className="animate-pulse">AI đang suy nghĩ...</span>
+            <div className="flex flex-col w-full max-w-4xl mx-auto pb-8 pt-4">
+              {messages.map(m => (
+                <MessageItem
+                  key={m.id}
+                  role={m.role}
+                  content={m.content}
+                  sources={m.sources}
+                />
+              ))}
+              {isLoading && (
+                <div className="flex w-full py-4 items-center gap-4">
+                  <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container shrink-0">
+                    <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>robot_2</span>
+                  </div>
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-text-secondary rounded-full animate-bounce [animation-delay:0ms]" />
+                    <span className="w-2 h-2 bg-text-secondary rounded-full animate-bounce [animation-delay:150ms]" />
+                    <span className="w-2 h-2 bg-text-secondary rounded-full animate-bounce [animation-delay:300ms]" />
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        <div className="p-4 bg-white border-t shrink-0 flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <DocumentPicker
-              selectedIds={attachedDocIds}
-              onChangeIds={setAttachedDocIds}
-              currentTopic={selectedTopic}
-            />
-
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              className="hidden"
-              accept=".pdf,.md,.txt,.py,.c,.cpp,.h,.asm,.yml,.yaml,.json"
-              disabled={isFileUploading || isLoading}
-            />
-
-            <button
-              type="button"
-              onClick={triggerFileInput}
-              disabled={isFileUploading || isLoading || !selectedTopic}
-              className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              title={
-                selectedTopic
-                  ? 'Tải tài liệu mới lên'
-                  : 'Vui lòng chọn chủ đề trước'
-              }
-            >
-              {isFileUploading ? (
-                <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <Paperclip size={12} />
-              )}
-              Tải tài liệu mới
-            </button>
+        {/* Error banner */}
+        {error && (
+          <div className="absolute bottom-32 left-0 right-0 mx-auto w-full max-w-4xl px-4 z-50">
+            <div className="bg-error-container border border-error text-on-error-container text-sm rounded-lg px-4 py-3 flex justify-between items-center shadow-dialog">
+              <span>{error}</span>
+              <button
+                onClick={() => setError(null)}
+                className="ml-4 font-bold hover:text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
-          {uploadingFile && (
-            <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 w-fit shadow-sm">
-              <Loader2 size={16} className="animate-spin text-blue-600" />
-              <span className="text-xs font-medium text-gray-700 truncate max-w-[240px]">
-                {uploadingFile.name}
-              </span>
-              <span className="text-[11px] text-gray-400">
-                Đang nạp dữ liệu...
-              </span>
+        {/* Input Area (Fixed Footer Anchored) */}
+        <div className="absolute bottom-0 left-0 right-0 px-lg pb-lg bg-gradient-to-t from-background via-background to-transparent pt-xl">
+          <div className="max-w-4xl mx-auto flex flex-col gap-sm">
+            <div className="flex justify-start mb-sm">
+              <DocumentPicker
+                selectedIds={selectedDocIds}
+                onChangeIds={setSelectedDocIds}
+              />
             </div>
-          )}
-
-          {attachedDocIds.length > 0 && (
-            <div className="text-[11px] text-gray-500">
-              Đã đính kèm {attachedDocIds.length} tài liệu cho câu hỏi tiếp theo.
-            </div>
-          )}
-
-          <form onSubmit={handleFormSubmit} className="flex gap-2 items-center">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={
-                selectedTopic
-                  ? `Hỏi AI về chủ đề ${selectedTopic}...`
-                  : 'Chọn bối cảnh để đặt câu hỏi...'
-              }
-              disabled={isLoading || isFileUploading}
-              className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white disabled:opacity-60"
+            
+            <ChatInput
+              input={input}
+              handleInputChange={(e) => setInput(e.target.value)}
+              handleSubmit={handleFormSubmit}
+              isLoading={isLoading}
             />
-
-            <button
-              type="submit"
-              disabled={
-                isLoading ||
-                isFileUploading ||
-                !input.trim() ||
-                !selectedTopic
-              }
-              className="bg-blue-600 text-white px-6 py-3 text-sm rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-            >
-              Gửi
-            </button>
-          </form>
+            
+            <p className="text-center text-micro font-micro text-text-secondary mt-2 opacity-70">
+              AI có thể mắc sai lầm. Hãy kiểm tra lại các thông tin quan trọng.
+            </p>
+          </div>
         </div>
-      </div>
-    </div>
+      </main>
+    </>
   );
 }

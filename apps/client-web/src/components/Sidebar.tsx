@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { PlusCircle, MessageSquare, Trash2, LogOut, Bot, X, Pin, PinOff, Pencil } from 'lucide-react';
 import type { Conversation } from '@/hooks/useConversations';
 
 interface SidebarProps {
@@ -89,16 +88,15 @@ export default function Sidebar({
           onSelect(conv.id);
           setIsOpen(false);
         }}
-        className={`group flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
+        className={`group flex items-center gap-md px-sm py-2 rounded-md cursor-pointer transition-colors duration-200 ${
           isActive
-            ? 'bg-gray-700 text-white'
-            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+            ? 'bg-surface-container-high text-text-emphasis font-nav-link-active'
+            : 'text-text-secondary font-nav-link-inactive hover:text-text-emphasis hover:bg-[#ffffff1a]'
         }`}
       >
-        {conv.pinned
-          ? <Pin size={12} className="shrink-0 text-blue-400" />
-          : <MessageSquare size={12} className="shrink-0 opacity-40" />
-        }
+        <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}>
+          {conv.pinned ? 'keep' : 'chat_bubble'}
+        </span>
 
         {isEditing ? (
           <input
@@ -111,10 +109,10 @@ export default function Sidebar({
               if (e.key === 'Escape') cancelEdit();
             }}
             onClick={e => e.stopPropagation()}
-            className="flex-1 bg-gray-600 text-white text-xs px-2 py-0.5 rounded outline-none border border-blue-500 min-w-0"
+            className="flex-1 bg-surface-variant text-text-emphasis text-sm px-2 py-0.5 rounded outline-none border border-border-light min-w-0 font-nav-link-inactive"
           />
         ) : (
-          <span className="flex-1 truncate text-xs leading-5 select-none">
+          <span className="flex-1 truncate text-sm leading-5 select-none">
             {conv.title}
           </span>
         )}
@@ -124,27 +122,27 @@ export default function Sidebar({
             <button
               onClick={e => { e.stopPropagation(); onPin(conv.id); }}
               title={conv.pinned ? 'Bỏ ghim' : 'Ghim'}
-              className={`p-1 rounded transition-colors ${
+              className={`p-1 rounded transition-colors cursor-pointer ${
                 conv.pinned
-                  ? 'text-blue-400 hover:text-blue-300'
-                  : 'text-gray-500 hover:text-blue-400'
+                  ? 'text-primary hover:text-primary-fixed'
+                  : 'text-text-secondary hover:text-primary'
               }`}
             >
-              {conv.pinned ? <PinOff size={12} /> : <Pin size={12} />}
+              <span className="material-symbols-outlined text-[16px]">{conv.pinned ? 'keep_off' : 'keep'}</span>
             </button>
             <button
               onClick={e => startEdit(conv, e)}
               title="Đổi tên"
-              className="p-1 rounded text-gray-500 hover:text-white transition-colors"
+              className="p-1 rounded text-text-secondary hover:text-text-emphasis transition-colors cursor-pointer"
             >
-              <Pencil size={12} />
+              <span className="material-symbols-outlined text-[16px]">edit</span>
             </button>
             <button
               onClick={e => { e.stopPropagation(); onDelete(conv.id); }}
               title="Xóa"
-              className="p-1 rounded text-gray-500 hover:text-red-400 transition-colors"
+              className="p-1 rounded text-text-secondary hover:text-negative transition-colors cursor-pointer"
             >
-              <Trash2 size={12} />
+              <span className="material-symbols-outlined text-[16px]">delete</span>
             </button>
           </div>
         )}
@@ -158,114 +156,75 @@ export default function Sidebar({
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/40 z-20 md:hidden" onClick={() => setIsOpen(false)} />
+        <div className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm" onClick={onClose} />
       )}
 
-      <aside
+      <nav
         className={`
-          fixed md:static inset-y-0 left-0 z-30
-          w-64 bg-gray-900 text-white flex flex-col shrink-0
-          transform transition-transform duration-200 ease-in-out
+          fixed md:static inset-y-0 left-0 z-50
+          w-[280px] bg-panel-surface h-full flex flex-col p-md shrink-0
+          transform transition-transform duration-200 ease-in-out shadow-dialog rounded-r-lg md:rounded-none
           ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
-        {/* Header hệ thống */}
-        <div className="px-4 py-3.5 flex items-center justify-between border-b border-gray-700/60">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-blue-500 rounded-lg flex items-center justify-center shrink-0">
-              <Bot size={15} />
+        <div className="flex items-center justify-between mb-xl px-sm">
+          <div className="flex items-center gap-md">
+            <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container">
+              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1", fontSize: "20px" }}>robot_2</span>
             </div>
-            <span className="font-semibold text-sm tracking-tight">UET AI</span>
+            <span className="text-section-title font-section-title text-text-emphasis tracking-tight">UET AI</span>
           </div>
-          <button onClick={() => setIsOpen(false)} className="md:hidden text-gray-400 hover:text-white transition-colors">
-            <X size={17} />
+          <button onClick={onClose} className="md:hidden text-text-secondary hover:text-text-emphasis transition-colors cursor-pointer">
+            <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
         </div>
 
-        {/* Nút hành động thêm cuộc hội thoại mới */}
-        <div className="px-3 pt-3 pb-2">
-          <button
-            onClick={() => { onNew(); setIsOpen(false); }}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm font-medium transition-colors"
-          >
-            <PlusCircle size={15} className="text-blue-400 shrink-0" />
-            Cuộc trò chuyện mới
-          </button>
-        </div>
+        <button
+          onClick={() => { onNew(); onClose(); }}
+          className="w-full bg-primary-container text-black font-nav-link-active rounded-full py-3 px-4 flex items-center justify-center gap-2 mb-lg hover:scale-[1.02] active:scale-95 transition-transform duration-150 cursor-pointer"
+        >
+          <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>add_circle</span>
+          Cuộc trò chuyện mới
+        </button>
 
-        {/* Khu vực hiển thị danh sách lịch sử phiên chat */}
-        <div className="flex-1 overflow-y-auto px-2 pb-2">
+        <div className="flex-1 overflow-y-auto flex flex-col gap-sm">
           {conversations.length === 0 ? (
-            <p className="text-gray-500 text-xs text-center py-6">Chưa có cuộc trò chuyện nào</p>
+            <p className="text-text-secondary text-sm text-center py-6">Chưa có cuộc trò chuyện nào</p>
           ) : (
             <>
               {pinned.length > 0 && (
-                <div className="mb-1">
-                  <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500 flex items-center gap-1">
-                    <Pin size={9} /> Đã ghim
+                <div className="mb-2">
+                  <p className="px-sm py-1.5 text-micro font-small-bold uppercase tracking-wider text-text-secondary flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">keep</span> Đã ghim
                   </p>
-                  <div className="space-y-0.5">{pinned.map(renderItem)}</div>
+                  <div className="flex flex-col gap-sm">{pinned.map(renderItem)}</div>
                 </div>
               )}
 
               {unpinned.length > 0 && (
                 <div>
                   {hasBothGroups && (
-                    <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                    <p className="px-sm py-1.5 text-micro font-small-bold uppercase tracking-wider text-text-secondary">
                       Gần đây
                     </p>
                   )}
-                  <div className="space-y-0.5">{unpinned.map(renderItem)}</div>
+                  <div className="flex flex-col gap-sm">{unpinned.map(renderItem)}</div>
                 </div>
               )}
             </>
           )}
         </div>
 
-        {/* 🌟 PHẦN CẢI TIẾN CỐT LÕI: Khối thông tin User & Đăng xuất (Bám đáy Sidebar) */}
-        <div className="mt-auto border-t border-gray-800 p-3 bg-gray-950/80 flex flex-col gap-2.5">
-          {loadingUser ? (
-            <div className="text-[11px] text-gray-500 px-2 py-1 animate-pulse">
-              Đang tải thông tin tài khoản...
-            </div>
-          ) : user ? (
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2.5 overflow-hidden">
-                {/* Avatar vòng tròn phong cách ChatGPT */}
-                <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0 select-none shadow-sm">
-                  {avatarLetter}
-                </div>
-                
-                {/* Text thông tin chi tiết */}
-                <div className="flex flex-col overflow-hidden text-left">
-                  <span className="text-xs font-semibold text-gray-200 truncate leading-4">
-                    {user.username}
-                  </span>
-                  <span className="text-[10px] text-gray-400 truncate leading-3 mt-0.5">
-                    {user.email}
-                  </span>
-                </div>
-              </div>
-
-              {/* Badge phân quyền nếu User mang quyền Quản trị hệ thống */}
-              {user.role === 'admin' && (
-                <span className="text-[9px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1 py-0.5 rounded font-mono scale-90 origin-right">
-                  ADMIN
-                </span>
-              )}
-            </div>
-          ) : null}
-
-          {/* Nút đăng xuất nguyên bản giữ nguyên liên kết xử lý */}
+        <div className="mt-auto pt-md flex flex-col gap-sm">
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-red-400 hover:bg-gray-800/60 text-xs font-medium transition-all"
+            className="flex items-center gap-md px-sm py-2 rounded-md text-text-secondary font-nav-link-inactive hover:text-negative hover:bg-[#ffffff1a] transition-colors duration-200 text-left cursor-pointer"
           >
-            <LogOut size={13} className="shrink-0" />
-            Đăng xuất khỏi hệ thống
+            <span className="material-symbols-outlined text-[20px]">logout</span>
+            Đăng xuất
           </button>
         </div>
-      </aside>
+      </nav>
     </>
   );
 }

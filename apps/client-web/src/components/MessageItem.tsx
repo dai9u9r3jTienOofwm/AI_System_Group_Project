@@ -3,7 +3,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { User, Bot, BookOpen, Copy, Check } from 'lucide-react';
 
 import type { Message } from '@/hooks/useConversations';
 
@@ -24,17 +23,19 @@ export default function MessageItem({ message }: MessageProps) {
   };
 
   return (
-    // 🌟 SỬA NỀN: Người dùng nền xám cực nhạt (bg-gray-50), AI nền trắng (bg-white) có viền mỏng
-    <div className={`flex w-full p-4 md:p-6 ${isUser ? 'bg-gray-50' : 'bg-white border-y border-gray-100'}`}>
-      <div className="flex max-w-4xl mx-auto w-full gap-4">
-        
-        {/* 🌟 SỬA AVATAR: Nền avatar sáng sủa hơn */}
-        <div className={`w-8 h-8 flex items-center justify-center rounded-md shrink-0 ${isUser ? 'bg-gray-200 text-gray-600' : 'bg-blue-100 text-blue-600'}`}>
-          {isUser ? <User size={20} /> : <Bot size={20} />}
-        </div>
+    <div className={`flex w-full py-6 px-4 rounded-xl mb-4 transition-colors ${isUser ? 'bg-transparent' : 'bg-surface-container shadow-floating'}`}>
+      <div className="flex w-full gap-4">
+        {isUser ? (
+          <div className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-bright shrink-0 text-text-secondary">
+            <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>person</span>
+          </div>
+        ) : (
+          <div className="w-8 h-8 flex items-center justify-center rounded-full bg-primary-container shrink-0 text-on-primary-container">
+            <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>robot_2</span>
+          </div>
+        )}
 
-        {/* 🌟 SỬA TEXT: Xóa prose-invert để chữ thành màu đen/xám đậm mặc định, thêm text-gray-900 */}
-        <div className="prose max-w-none flex-1 relative group text-gray-900">
+        <div className="prose prose-invert max-w-none flex-1 relative group font-body-base text-text-emphasis leading-relaxed">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
@@ -45,18 +46,20 @@ export default function MessageItem({ message }: MessageProps) {
                     style={vscDarkPlus as any} // Vẫn giữ nền tối cho block code để dễ nhìn cú pháp
                     language={match[1]}
                     PreTag="div"
-                    className="rounded-md shadow-sm border border-gray-800"
+                    className="rounded-md !bg-surface-container-highest !my-4"
                     {...props}
                   >
                     {String(children).replace(/\n$/, '')}
                   </SyntaxHighlighter>
                 ) : (
-                  // 🌟 SỬA CODE INLINE: Nền xám nhạt chữ hồng/đỏ
-                  <code className="bg-gray-100 text-pink-600 px-1.5 py-0.5 rounded font-mono text-sm border border-gray-200" {...props}>
+                  <code className="bg-surface-container-highest text-primary-fixed px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
                     {children}
                   </code>
                 );
               },
+              p: ({children}) => <p className="mb-4 last:mb-0">{children}</p>,
+              a: ({children, href}) => <a href={href} className="text-primary hover:underline">{children}</a>,
+              strong: ({children}) => <strong className="font-body-bold text-white">{children}</strong>,
             }}
           >
             {content}
@@ -66,31 +69,30 @@ export default function MessageItem({ message }: MessageProps) {
             // 🌟 SỬA NÚT COPY: Nền xám nhạt, icon xám đậm
             <button
               onClick={handleCopy}
-              className="absolute -top-2 -right-2 p-2 text-gray-500 bg-white border border-gray-200 rounded-md opacity-0 group-hover:opacity-100 transition-all hover:bg-gray-50 hover:text-gray-800 shadow-sm"
+              className="absolute -top-2 right-0 p-2 text-text-secondary bg-surface-bright rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-surface-container-highest hover:text-white shadow-floating scale-95 hover:scale-100"
               title="Copy nội dung"
               aria-label="Copy nội dung"
             >
-              {isCopied ? <Check size={16} className="text-green-600" /> : <Copy size={16} />}
+              <span className="material-symbols-outlined text-[16px]">{isCopied ? 'check' : 'content_copy'}</span>
             </button>
           )}
 
           {/* 🌟 HIỂN THỊ NGUỒN TÀI LIỆU TRÍCH DẪN SÁNG MÀU HƠN */}
           {!isUser && sources && sources.length > 0 && (
-            <div className="mt-6 pt-4 border-t border-gray-200">
-              <p className="flex items-center gap-2 text-sm font-semibold text-gray-500 mb-3">
-                <BookOpen size={16} /> Nguồn tài liệu tham khảo:
+            <div className="mt-6 pt-4 border-t border-border-gray/50">
+              <p className="flex items-center gap-2 text-sm font-small-bold text-text-secondary mb-3 uppercase tracking-wider">
+                <span className="material-symbols-outlined text-[16px]">menu_book</span> Nguồn tài liệu:
               </p>
               <div className="flex flex-wrap gap-2">
                 {sources.map((source: any, index: number) => (
                   <div
                     key={index}
-                    // Sửa pill hiển thị nguồn sang màu xanh dương nhạt cho hợp tông Light Mode
-                    className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-700 hover:bg-blue-100 transition-colors cursor-default shadow-sm"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-variant/50 border border-border-gray rounded-md text-xs text-text-secondary hover:bg-surface-variant hover:text-text-emphasis transition-colors cursor-default"
                     title={source.snippet}
                   >
-                    <span className="font-bold text-blue-800">[{index + 1}]</span>
-                    <span className="font-medium">{source.fileName || "Tài liệu"}</span>
-                    {source.pageNumber && <span className="opacity-70 text-blue-600">(Trang {source.pageNumber})</span>}
+                    <span className="font-body-bold text-primary-fixed-dim">[{index + 1}]</span>
+                    <span>{source.fileName}</span>
+                    {source.pageNumber && <span className="opacity-70">(Trang {source.pageNumber})</span>}
                   </div>
                 ))}
               </div>
