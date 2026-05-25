@@ -21,8 +21,8 @@ interface User {
   id: number;
   username: string;
   email: string;
-  is_active: boolean;
   role: 'admin' | 'user';
+  created_at?: string;
 }
 
 export default function UsersPage() {
@@ -102,16 +102,6 @@ export default function UsersPage() {
       key: 'email',
     },
     {
-      title: 'Trạng Thái',
-      dataIndex: 'is_active',
-      key: 'is_active',
-      render: (isActive: boolean) => (
-        <Tag color={isActive ? 'green' : 'gold'}>
-          {isActive ? 'Đang Hoạt Động' : 'Bị Khóa'}
-        </Tag>
-      ),
-    },
-    {
       title: 'Vai Trò',
       dataIndex: 'role',
       key: 'role',
@@ -129,9 +119,9 @@ export default function UsersPage() {
     },
     {
       title: 'Ngày Tạo',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date: string) => new Date(date).toLocaleString('vi-VN'),
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (date: string) => date ? new Date(date).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '-',
     },
     {
       title: 'Hành Động',

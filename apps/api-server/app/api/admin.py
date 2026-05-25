@@ -4,6 +4,7 @@
 # - Tạo metadata trong PostgreSQL
 # - Gửi task cho worker
 
+from datetime import datetime
 from uuid import uuid4
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status, Cookie
 from sqlalchemy.orm import Session
@@ -11,8 +12,9 @@ from app.services.document_service import DocumentService
 from app.services.minio_service import get_client
 from app.db.session import get_db
 from app.schemas.document import UploadDocumentRespond
-from minio import Minio 
+from minio import Minio
 from app.models.user import User
+from app.models.chat import ChatSession
 
 router = APIRouter()
 
@@ -26,12 +28,7 @@ def get_doc_service(db: Session = Depends(get_db)):
     return DocumentService(db, get_client())
 
 @router.post("/upload", response_model=UploadDocumentRespond)
-async def upload_file(file: UploadFile = File(...),doc_service: DocumentService = Depends(get_doc_service),userId: str = Cookie(None)):
-    if not userId:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
-            detail="Phiên đăng nhập hết hạn, vui lòng đăng nhập lại!"
-        )
+async def upload_file(file: UploadFile = File(...),doc_service: DocumentService = Depends(get_doc_service)):
     if not file.filename:
         raise HTTPException(
             status_code= status.HTTP_404_NOT_FOUND,
@@ -51,8 +48,7 @@ async def upload_file(file: UploadFile = File(...),doc_service: DocumentService 
     object_name = f"documents/{document_id}/{file.filename}"
         
     try:
-        user_id = int(userId)
-        return await doc_service.handle_upload(file=file,admin_id=user_id,document_id=document_id,object_name=object_name) 
+        return await doc_service.handle_upload(file=file,upload_by = "admin",document_id=document_id,object_name=object_name) 
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -60,10 +56,20 @@ async def upload_file(file: UploadFile = File(...),doc_service: DocumentService 
         )     
         
 @router.get("/user")
-def get_all_users(db:Session = Depends(get_db)):
+def get_all_users(db: Session = Depends(get_db)):
     users = db.query(User).all()
-    return users  
+    return [
+        {
+            "id": u.id,
+            "username": u.username,
+            "email": u.email,
+            "role": u.role,
+            "created_at": (u.created_at.isoformat() + "Z" if isinstance(u.created_at, datetime) else str(u.created_at)) if u.created_at else None,
+        }
+        for u in users
+    ]
 
+@router.post("/users")
 @router.post("/user")
 def create_user(userdata,db:Session = Depends(get_db)):
     exist_user = db.query(User).filter(User.email == userdata.get("email")).first() 
@@ -98,7 +104,8 @@ def update_user(user_id, user_data,db:Session = Depends(get_db) ):
     db.commit()
     return {"status": "success", "message": "Updated user!"}
 
-@router.delete("/user/{user_id}")      
+@router.delete("/users/{user_id}")
+@router.delete("/user/{user_id}")
 def delete_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -106,3 +113,26 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     db.delete(user)
     db.commit()
     return {"status": "success","detail": "User deleted successfully"}
+
+@router.get("/chat_sessions")
+def get_all_chat_sessions(db: Session = Depends(get_db)):
+    sessions = db.query(ChatSession).order_by(ChatSession.created_at.desc()).all()
+    return [
+        {
+            "id": s.id,
+            "user_id": s.user_id,
+            "title": s.title,
+            "topic": s.topic,
+            "created_at": (s.created_at.isoformat() + "Z" if isinstance(s.created_at, datetime) else str(s.created_at)),
+        }
+        for s in sessions
+    ]
+
+@router.delete("/chat_sessions/{session_id}")
+def delete_chat_session(session_id: str, db: Session = Depends(get_db)):
+    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    db.delete(session)
+    db.commit()
+    return {"status": "success", "detail": "Session deleted"}

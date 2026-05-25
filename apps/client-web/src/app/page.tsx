@@ -1,16 +1,38 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Menu, Bot } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Menu, Bot, AlertCircle, Paperclip, Loader2 } from 'lucide-react';
+
 import MessageItem from '@/components/MessageItem';
-import ChatInput from '@/components/ChatInput';
 import Sidebar from '@/components/Sidebar';
 import DocumentPicker from '@/components/DocumentPicker';
 import { useConversations } from '@/hooks/useConversations';
 import type { Message } from '@/hooks/useConversations';
 
+type UploadResponse = {
+  success?: boolean;
+  document_id?: string;
+  id?: string;
+  error?: string;
+  detail?: string;
+  message?: string;
+  data?: {
+    id?: string;
+    document_id?: string;
+  };
+};
+
+type ChatResponse = {
+  answer?: string;
+  sources?: unknown;
+  error?: string;
+  detail?: string;
+  message?: string;
+};
+
 export default function ChatPage() {
+  const conversationsHook = useConversations();
+
   const {
     conversations,
     activeId,
@@ -21,87 +43,278 @@ export default function ChatPage() {
     deleteConversation,
     pinConversation,
     renameConversation,
-  } = useConversations();
+  } = conversationsHook;
+
+  /**
+   * Dùng optional để tránh lỗi build nếu hook useConversations
+   * chưa khai báo updateTopic trong type.
+   */
+  const updateTopic = (
+    conversationsHook as unknown as {
+      updateTopic?: (conversationId: string, topic: string) => void;
+    }
+  ).updateTopic;
 
   const messages = activeConversation?.messages ?? [];
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [input, setInput] = useState('');
-  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const [attachedDocIds, setAttachedDocIds] = useState<string[]>([]);
+
+  const [selectedTopic, setSelectedTopic] = useState('');
+  const [availableTopics, setAvailableTopics] = useState<string[]>([]);
+  const [topicsLoading, setTopicsLoading] = useState(true);
+
+  const [isFileUploading, setIsFileUploading] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState<File | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
+  const savedSessionIds = useRef<Set<string>>(new Set());
+
+  const fetchTopics = useCallback(async () => {
+    setTopicsLoading(true);
+
+    try {
+      const res = await fetch('/api/documents/topics');
+
+      if (!res.ok) {
+        throw new Error('Không thể tải danh sách chủ đề.');
+      }
+
+      const data = await res.json();
+
+      if (Array.isArray(data)) {
+        setAvailableTopics(data);
+      } else if (data && Array.isArray(data.topics)) {
+        setAvailableTopics(data.topics);
+      } else {
+        setAvailableTopics([]);
+      }
+    } catch (err) {
+      console.error('Error loading topics:', err);
+      setAvailableTopics([]);
+    } finally {
+      setTopicsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    fetchTopics();
+  }, [fetchTopics]);
+
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, isLoading]);
 
-  // Clear input and error when switching conversations
   useEffect(() => {
     setInput('');
     setError(null);
-  }, [activeId]);
+    setAttachedDocIds([]);
+
+    const conversationTopic =
+      (activeConversation as unknown as { topic?: string } | undefined)?.topic ?? '';
+
+    setSelectedTopic(conversationTopic);
+  }, [activeId, activeConversation]);
 
   const handleLogout = async () => {
     try {
-    await fetch('/api/auth/logout', { method: 'POST' });
+      await fetch('/api/auth/logout', { method: 'POST' });
+      localStorage.removeItem('userId');
+      localStorage.removeItem('userRole');
+      window.location.href = '/login';
+    } catch (err) {
+      console.error('Lỗi khi đăng xuất:', err);
+      setError('Không thể đăng xuất. Vui lòng thử lại.');
+    }
+  };
 
-    localStorage.removeItem('userId');
-    localStorage.removeItem('userRole');
+  const triggerFileInput = () => {
+    if (isFileUploading || isLoading) return;
+    fileInputRef.current?.click();
+  };
 
-    window.location.href = '/login';
-  } catch (error) {
-    console.error('Lỗi khi đăng xuất:', error);
-  }
-};
+  const resetFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
-  const handleFormSubmit = async (e: { preventDefault(): void }) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const userId = localStorage.getItem('userId') || 'guest';
+
+    if (!file) return;
+
+    if (!selectedTopic) {
+      setError('Vui lòng chọn một Chủ đề trước khi tải tài liệu.');
+      resetFileInput();
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Tệp tin quá lớn. Vui lòng chọn tệp dưới 10MB.');
+      resetFileInput();
+      return;
+    }
+    
+    setUploadingFile(file);
+    setIsFileUploading(true);
+    setError(null);
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('topic', selectedTopic);
+    formData.append('user_id', userId);
+
+    try {
+      const res = await fetch('/api/documents/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = (await res.json().catch(() => ({}))) as UploadResponse;
+
+      if (!res.ok) {
+        throw new Error(
+          result.error ||
+            result.detail ||
+            result.message ||
+            'Upload tài liệu thất bại.'
+        );
+      }
+
+      const newDocId =
+        result.document_id ||
+        result.id ||
+        result.data?.document_id ||
+        result.data?.id;
+
+      if (!newDocId) {
+        throw new Error('Backend đã upload xong nhưng không trả về document_id.');
+      }
+
+      setAttachedDocIds((prev) => {
+        if (prev.includes(newDocId)) return prev;
+        return [...prev, newDocId];
+      });
+
+      setError(null);
+    } catch (err) {
+      console.error('Lỗi khi tải file lên:', err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Đã xảy ra lỗi khi tải tài liệu lên.'
+      );
+    } finally {
+      setIsFileUploading(false);
+      setUploadingFile(null);
+      resetFileInput();
+    }
+  };
+
+  const handleChangeTopic = (newTopic: string) => {
+    setSelectedTopic(newTopic);
+    setAttachedDocIds([]);
+
+    if (activeId) {
+      updateTopic?.(activeId, newTopic);
+    }
+
+    if (error) {
+      setError(null);
+    }
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || !activeId) return;
+
+    const question = input.trim();
+    const userId = localStorage.getItem('userId') || 'guest';
+
+    if (!question || isLoading || isFileUploading || !activeId) return;
+
+    if (!selectedTopic) {
+      setError('Vui lòng chọn một Chủ đề trước khi nhắn tin.');
+      return;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: input.trim(),
+      content: question,
     };
 
-    const updatedMessages = [...messages, userMessage];
+    const updatedMessages: Message[] = [...messages, userMessage];
+
     updateMessages(activeId, updatedMessages);
+
     setInput('');
     setIsLoading(true);
     setError(null);
 
-    try {
-      const res = await fetch('/api/chat', {
+    // Lưu session vào DB lần đầu tiên mỗi conversation
+    if (activeId && !savedSessionIds.current.has(activeId)) {
+      savedSessionIds.current.add(activeId);
+      fetch('/api/chat-sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: updatedMessages,
-          documentIds: selectedDocIds,
+          topic: selectedTopic,
+          title: question.slice(0, 50),
+        }),
+      }).catch(() => {});
+    }
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          question,
+          topic: selectedTopic,
+          document_ids: attachedDocIds,
+          user_id: userId,
         }),
       });
 
-      const data = await res.json();
+      const data = (await res.json().catch(() => ({}))) as ChatResponse;
 
       if (!res.ok || data.error) {
-        throw new Error(data.error ?? 'Lỗi không xác định từ máy chủ.');
+        throw new Error(
+          data.error ||
+            data.detail ||
+            data.message ||
+            'Lỗi từ máy chủ AI.'
+        );
       }
 
-      updateMessages(activeId, [
-        ...updatedMessages,
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: data.answer,
-          sources: data.sources,
-        },
-      ]);
+      const assistantMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.answer || 'AI không trả về nội dung.',
+        sources: data.sources,
+      } as Message;
+
+      updateMessages(activeId, [...updatedMessages, assistantMessage]);
+
+      setAttachedDocIds([]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể kết nối đến máy chủ AI.');
+      console.error('Lỗi khi gửi câu hỏi:', err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Không thể kết nối đến máy chủ AI.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -110,6 +323,8 @@ export default function ChatPage() {
   return (
     <>
       <Sidebar
+        isOpen={sidebarOpen}
+        setIsOpen={setSidebarOpen}
         conversations={conversations}
         activeId={activeId}
         onSelect={setActiveId}
@@ -118,8 +333,6 @@ export default function ChatPage() {
         onPin={pinConversation}
         onRename={renameConversation}
         onLogout={handleLogout}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
       />
 
       {/* Main Content Canvas */}
@@ -128,6 +341,7 @@ export default function ChatPage() {
         <header className="flex justify-between items-center w-full px-lg h-16 sticky top-0 z-40 bg-background/90 backdrop-blur-md">
           <div className="md:hidden flex items-center gap-sm">
             <button
+              type="button"
               onClick={() => setSidebarOpen(true)}
               className="text-text-secondary hover:text-text-emphasis transition-colors shrink-0 cursor-pointer"
               aria-label="Mở menu"
@@ -151,6 +365,23 @@ export default function ChatPage() {
             <span className="hidden sm:inline">
               {isLoading ? 'Đang suy nghĩ...' : 'Sẵn sàng'}
             </span>
+
+            <select
+              className="border p-1.5 rounded-md text-sm bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 text-gray-700"
+              value={selectedTopic}
+              onChange={(e) => handleChangeTopic(e.target.value)}
+              disabled={messages.length > 0 || topicsLoading}
+            >
+              <option value="" disabled>
+                {topicsLoading ? '-- Đang tải... --' : '-- Chọn chủ đề --'}
+              </option>
+
+              {availableTopics.map((topic) => (
+                <option key={topic} value={topic}>
+                  {topic}
+                </option>
+              ))}
+            </select>
           </div>
         </header>
 
@@ -205,7 +436,6 @@ export default function ChatPage() {
               </button>
             </div>
           </div>
-        )}
 
         {/* Input Area (Fixed Footer Anchored) */}
         <div className="absolute bottom-0 left-0 right-0 px-lg pb-lg bg-gradient-to-t from-background via-background to-transparent pt-xl">

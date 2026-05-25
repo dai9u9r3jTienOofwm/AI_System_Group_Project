@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, Table, Upload, Button, Space, message, Progress, Tag, Popconfirm } from 'antd';
+import { Card, Table, Upload, Button, Space, message, Progress, Tag, Popconfirm, Select } from 'antd';
 import { CloudUploadOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import { apiClient } from '@/lib/api-client';
+import { AVAILABLE_TOPICS } from '@/lib/constants';
 
 interface Document {
   id: string;
@@ -21,6 +22,7 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedTopic, setSelectedTopic] = useState<string | undefined>(undefined);
 
   const loadDocuments = async () => {
     setLoading(true);
@@ -36,24 +38,66 @@ export default function DocumentsPage() {
 
   useEffect(() => { loadDocuments(); }, []);
 
-  const handleUpload = async (file: File) => {
-    setUploading(true);
-    setUploadProgress(0);
-    try {
-      await apiClient.uploadDocument(file, { timestamp: new Date().toISOString() });
-      setUploadProgress(100);
-      message.success('Tải lên tài liệu thành công');
-      setTimeout(() => { loadDocuments(); setUploadProgress(0); }, 1000);
-    } catch (error) {
-      const msg =
-        typeof error === 'object' && error !== null && 'response' in error
-          ? (error as { response?: { data?: { error?: string } } }).response?.data?.error
-          : undefined;
-      message.error(msg || 'Tải lên tài liệu thất bại');
-    } finally {
-      setUploading(false);
+  const handleUpload = async (file: File, currentTopic?: string, chatSessionId?: string) => {
+  const userId = localStorage.getItem('userId') || 'guest';
+  setUploading(true);
+  setUploadProgress(0);
+
+  try {
+    const metadata: Record<string, string> = {
+      timestamp: new Date().toISOString(),
+    };
+
+    // 🌟 CÚ CHỐT ĐỒNG BỘ: 
+    // Nếu có cuộc trò chuyện đang active (User luồng chat), ép file mang đúng topic của đoạn chat đó.
+    // Nếu không (Admin luồng quản lý), lấy từ Dropdown Select tùy chọn như cũ.
+    if (currentTopic) {
+      metadata.topic = currentTopic;
+    } else if (selectedTopic) {
+      metadata.topic = selectedTopic;
     }
-  };
+
+    // Nếu có mã phiên trò chuyện, truyền kèm lên để Backend lưu khóa ngoại vật lý
+    if (chatSessionId) {
+      metadata.chat_session_id = chatSessionId;
+    }
+
+    // Gửi file và metadata lên Backend
+    const response = await apiClient.uploadDocument(file, metadata);
+
+    setUploadProgress(100);
+
+    const activeTopic = currentTopic || selectedTopic;
+    message.success(
+      activeTopic
+        ? `Tải lên tài liệu thành công thuộc chủ đề: ${activeTopic}`
+        : 'Tải lên tài liệu thành công'
+    );
+
+    // 🌟 KHẮC PHỤC LỖI BIẾN MẤT:
+    setTimeout(() => {
+      // Chỉ chạy load toàn bộ kho tài liệu nếu đang đứng ở trang Admin quản lý bảng
+      if (!chatSessionId) {
+        loadDocuments();
+      }
+      setUploadProgress(0);
+    }, 1000);
+
+    // Trả về ID của tài liệu mới tạo để Component Khung Chat bắt lấy và găm vào giao diện
+    return response?.document_id || response?.id;
+
+  } catch (error) {
+    const msg =
+      typeof error === 'object' && error !== null && 'response' in error
+        ? (error as { response?: { data?: { error?: string } } }).response?.data?.error
+        : undefined;
+
+    message.error(msg || 'Tải lên tài liệu thất bại');
+    return null;
+  } finally {
+    setUploading(false);
+  }
+};
 
   const handleDelete = async (docId: string) => {
     try {
@@ -125,6 +169,20 @@ export default function DocumentsPage() {
 
       <Card className="mb-6 border border-white/10 bg-black text-white shadow-[0_0_40px_rgba(0,0,0,0.45)]">
         <Space orientation="vertical" style={{ width: '100%' }}>
+          <div>
+            <h3 className="mb-3 text-base font-semibold text-slate-100">Chọn Chủ Đề (Optional)</h3>
+            <Select
+              placeholder="Chọn chủ đề cho tài liệu (tùy chọn)"
+              style={{ width: '100%', marginBottom: '12px' }}
+              allowClear
+              value={selectedTopic}
+              onChange={setSelectedTopic}
+              options={AVAILABLE_TOPICS.map((topic) => ({
+                label: topic,
+                value: topic,
+              }))}
+            />
+          </div>
           <div>
             <h3 className="mb-3 text-base font-semibold text-slate-100">Tải Lên Tài Liệu Mới</h3>
             <Upload maxCount={1} beforeUpload={(file) => { handleUpload(file); return false; }} disabled={uploading}>

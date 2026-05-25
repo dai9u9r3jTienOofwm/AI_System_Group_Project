@@ -13,7 +13,14 @@ interface SidebarProps {
   onRename: (id: string, title: string) => void;
   onLogout: () => void;
   isOpen: boolean;
-  onClose: () => void;
+  setIsOpen: (isOpen: boolean) => void;
+}
+
+// 🌟 Định nghĩa kiểu dữ liệu User nhận về từ Endpoint /v1/auth/me
+interface UserInfo {
+  username: string;
+  email: string;
+  role: string;
 }
 
 export default function Sidebar({
@@ -26,11 +33,27 @@ export default function Sidebar({
   onRename,
   onLogout,
   isOpen,
-  onClose,
+  setIsOpen,
 }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // 🌟 State quản lý thông tin User Profile
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  // 🌟 Fetch thông tin cá nhân khi cấu trúc Sidebar được load
+  useEffect(() => {
+    fetch('/v1/auth/me')
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error('Chưa xác thực session');
+      })
+      .then((data) => setUser(data))
+      .catch((err) => console.error('Profile fetch error:', err))
+      .finally(() => setLoadingUser(false));
+  }, []);
 
   useEffect(() => {
     if (editingId) inputRef.current?.focus();
@@ -63,7 +86,7 @@ export default function Sidebar({
         onClick={() => {
           if (isEditing) return;
           onSelect(conv.id);
-          onClose();
+          setIsOpen(false);
         }}
         className={`group flex items-center gap-md px-sm py-2 rounded-md cursor-pointer transition-colors duration-200 ${
           isActive
@@ -126,6 +149,9 @@ export default function Sidebar({
       </div>
     );
   };
+
+  // Trích xuất chữ cái đầu tiên phục vụ việc vẽ Avatar giống ChatGPT
+  const avatarLetter = user?.username ? user.username.charAt(0).toUpperCase() : 'U';
 
   return (
     <>

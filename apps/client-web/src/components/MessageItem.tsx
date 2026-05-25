@@ -4,13 +4,15 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
+import type { Message } from '@/hooks/useConversations';
+
 interface MessageProps {
-  role: string;
-  content: string;
-  sources?: { fileName: string; pageNumber?: number; snippet?: string }[];
+  message: Message;
 }
 
-export default function MessageItem({ role, content, sources }: MessageProps) {
+export default function MessageItem({ message }: MessageProps) {
+  const { role, content, sources } = message;
+  
   const isUser = role === 'user';
   const [isCopied, setIsCopied] = useState(false);
 
@@ -41,7 +43,7 @@ export default function MessageItem({ role, content, sources }: MessageProps) {
                 const match = /language-(\w+)/.exec(className || '');
                 return !inline && match ? (
                   <SyntaxHighlighter
-                    style={vscDarkPlus as any}
+                    style={vscDarkPlus as any} // Vẫn giữ nền tối cho block code để dễ nhìn cú pháp
                     language={match[1]}
                     PreTag="div"
                     className="rounded-md !bg-surface-container-highest !my-4"
@@ -64,6 +66,7 @@ export default function MessageItem({ role, content, sources }: MessageProps) {
           </ReactMarkdown>
 
           {!isUser && (
+            // 🌟 SỬA NÚT COPY: Nền xám nhạt, icon xám đậm
             <button
               onClick={handleCopy}
               className="absolute -top-2 right-0 p-2 text-text-secondary bg-surface-bright rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-surface-container-highest hover:text-white shadow-floating scale-95 hover:scale-100"
@@ -74,13 +77,14 @@ export default function MessageItem({ role, content, sources }: MessageProps) {
             </button>
           )}
 
+          {/* 🌟 HIỂN THỊ NGUỒN TÀI LIỆU TRÍCH DẪN SÁNG MÀU HƠN */}
           {!isUser && sources && sources.length > 0 && (
             <div className="mt-6 pt-4 border-t border-border-gray/50">
               <p className="flex items-center gap-2 text-sm font-small-bold text-text-secondary mb-3 uppercase tracking-wider">
                 <span className="material-symbols-outlined text-[16px]">menu_book</span> Nguồn tài liệu:
               </p>
               <div className="flex flex-wrap gap-2">
-                {sources.map((source, index) => (
+                {sources.map((source: any, index: number) => (
                   <div
                     key={index}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-variant/50 border border-border-gray rounded-md text-xs text-text-secondary hover:bg-surface-variant hover:text-text-emphasis transition-colors cursor-default"

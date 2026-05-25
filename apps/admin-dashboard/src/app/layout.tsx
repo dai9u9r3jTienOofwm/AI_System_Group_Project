@@ -39,7 +39,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col text-[50px]">
+      <body className="min-h-full flex flex-col text-sm">
         {/* 2. Bọc toàn bộ nội dung của ứng dụng (children) bên trong Providers */}
         <Providers>
           {children}

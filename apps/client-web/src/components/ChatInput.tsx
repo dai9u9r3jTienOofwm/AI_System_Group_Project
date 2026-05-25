@@ -1,10 +1,17 @@
+'use client';
+
 import TextareaAutosize from 'react-textarea-autosize';
 
 interface ChatInputProps {
   input: string;
   handleInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
-  handleSubmit: (e: { preventDefault(): void }) => void;
+  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
   isLoading: boolean;
+  
+  // 🌟 THÊM CÁC PROPS MỚI: Để quản lý tài liệu đính kèm trực tiếp tại khung nhập liệu
+  selectedDocIds: string[];
+  onChangeDocIds: (ids: string[]) => void;
+  currentTopic: string; // Phục vụ việc lọc tài liệu theo đúng chủ đề đoạn chat
 }
 
 export default function ChatInput({
@@ -12,7 +19,14 @@ export default function ChatInput({
   handleInputChange,
   handleSubmit,
   isLoading,
+  selectedDocIds,
+  onChangeDocIds,
+  currentTopic,
 }: ChatInputProps) {
+  
+  // Xử lý chặn hành động submit nếu cả chữ và file đều trống
+  const isFormEmpty = !input.trim() && selectedDocIds.length === 0;
+
   return (
     <form
       onSubmit={handleSubmit}

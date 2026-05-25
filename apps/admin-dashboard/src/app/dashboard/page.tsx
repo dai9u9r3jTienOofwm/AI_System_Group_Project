@@ -26,6 +26,11 @@ const sections = [
     href: '/dashboard/ingest-status',
     description: 'Theo dõi tiến trình ingest.',
   },
+  {
+    title: 'Chat Session',
+    href: '/dashboard/chat_session',
+    description: 'Hiển thị lịch sử đoạn chat của người dùng.',
+  }
 ];
 
 export default function DashboardPage() {

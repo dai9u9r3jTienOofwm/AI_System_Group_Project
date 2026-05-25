@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     QDRANT_URL: str
     QDRANT_COLLECTION: str = "technical_rag"
-    QDRANT_VECTOR_SIZE: int = 1536
+    QDRANT_VECTOR_SIZE: int 
 
 
     REDIS_URL: str 

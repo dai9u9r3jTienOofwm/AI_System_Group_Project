@@ -15,83 +15,75 @@ This service does **not** call any LLM — generation is handled in Stage 10.
 import logging
 from typing import Any
 
-from app.services.qdrant_service import search_similar
+from app.services.qdrant_service import search_similar, extract_requested_filename, _normalise_optional_str
 
 logger = logging.getLogger(__name__)
 
 
 def retrieve(
     question: str,
+    topic: str | None = None,
+    uploaded_by: str | None = None,
+    filename: str | None = None,
     top_k: int = 5,
 ) -> list[dict[str, Any]]:
-    """Retrieve semantically similar chunks from Qdrant.
-
-    Parameters
-    ----------
-    question : str
-        The user's query (already validated as non-empty by the caller /
-        Pydantic schema).
-    top_k : int
-        Number of results to return (clamped 1–20).
-
-    Returns
-    -------
-    list[dict[str, Any]]
-        A list of normalised chunk dicts with keys ``text``, ``score``,
-        ``metadata``.  Returns an empty list when no results are found or
-        when an error occurs inside the Qdrant call.
-    """
     if not question or not question.strip():
-        logger.warning("retrieve() called with empty/blank question — returning []")
+        logger.warning("retrieve() called with empty/blank question")
         return []
 
     try:
-        raw_results: list[dict[str, Any]] = search_similar(
+        requested_filename = (
+            _normalise_optional_str(filename)
+            or extract_requested_filename(question)
+        )
+
+        raw_results = search_similar(
             question=question,
+            topic=None if requested_filename else topic,
+            uploaded_by=uploaded_by,
+            filename=requested_filename,
             top_k=top_k,
         )
+
     except Exception:
         logger.exception(
-            "search_similar() raised an unexpected error for question=%r",
+            "search_similar() failed for question=%r",
             question[:120],
         )
         return []
 
-    # ------------------------------------------------------------------
-    # Normalise each result — ensure text/score/metadata keys exist even
-    # if Qdrant returns a malformed payload.
-    # ------------------------------------------------------------------
     normalised: list[dict[str, Any]] = []
-    for idx, res in enumerate(raw_results):
-        text: str = res.get("text", "")
+
+    for res in raw_results:
+        text = res.get("text", "")
         if not isinstance(text, str):
             text = str(text)
 
-        score: float = res.get("score", 0.0)
+        metadata = res.get("metadata", {})
+        if not isinstance(metadata, dict):
+            metadata = {}
+
+        score = res.get("score", 0.0)
         if not isinstance(score, (int, float)):
             try:
                 score = float(score)
-            except (TypeError, ValueError):
+            except Exception:
                 score = 0.0
 
-        metadata: dict = res.get("metadata", {})
-        if not isinstance(metadata, dict):
-            try:
-                metadata = dict(metadata) if metadata else {}
-            except (TypeError, ValueError):
-                metadata = {}
+        if text.strip():
+            normalised.append(
+                {
+                    "text": text,
+                    "score": score,
+                    "metadata": metadata,
+                }
+            )
 
-        normalised.append(
-            {
-                "text": text,
-                "score": score,
-                "metadata": metadata,
-            }
-        )
-
-    logger.debug(
-        "retrieve() returned %d normalised chunks (top_k=%d)",
+    logger.info(
+        "retrieve() returned %d chunks filename=%s topic=%s",
         len(normalised),
-        top_k,
+        requested_filename,
+        topic,
     )
+
     return normalised

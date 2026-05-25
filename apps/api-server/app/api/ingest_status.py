@@ -64,10 +64,12 @@ def _doc_to_frontend(doc) -> dict:
         "name": doc.filename,
         "size": doc.file_size,
         "status": doc.status,
+        "topic": doc.topic,
         "uploadedAt": (
-            doc.created_at.isoformat() if isinstance(doc.created_at, datetime)
+            doc.created_at.isoformat() + "Z" if isinstance(doc.created_at, datetime)
             else str(doc.created_at)
         ),
+        "uploaded_by": doc.uploaded_by,
         "error_message": doc.error_message,
         "chunk_count": doc.chunk_count,
     }

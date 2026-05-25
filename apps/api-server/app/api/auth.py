@@ -1,8 +1,14 @@
+# - Nhận file từ FastAPI
+# - Validate file
+# - Gọi MinIO để upload file gốc
+# - Tạo metadata trong PostgreSQL
+# - Gửi task cho worker
+
 #Vào Postgres tìm User theo Email.
 #So sánh trực tiếp chuỗi mật khẩu người dùng nhập với mật khẩu lưu trong DB.
 #{"status": "success", "is_admin": true}
 
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, status, Cookie
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.models.user import User
@@ -12,7 +18,7 @@ router = APIRouter()
 
 
 class LoginPayload(BaseModel):
-    email: str
+    username: str
     password: str
 
 class RegisterPayload(BaseModel):
@@ -46,26 +52,42 @@ def register_request(payload: RegisterPayload, db:Session = Depends(get_db)):
 
 @router.post("/login")
 def login_request(payload: LoginPayload, db:Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == payload.email).first()
-    
-    if not user and payload.email == "admin@example.com":
-        new_admin = User (
-            username = "admin",
-            email = "admin@example.com",
-            password = "password123",
-            is_active = True,
-            role = "admin"
+    user = db.query(User).filter(User.username == payload.username).first()
+
+    if not user and payload.username == "admin":
+        new_admin = User(
+            username="admin",
+            email="admin@example.com",
+            password="password123",
+            is_active=True,
+            role="admin"
         )
-        
         db.add(new_admin)
         db.commit()
         db.refresh(new_admin)
-        
+        user = new_admin
+
     if not user or payload.password != user.password:
         raise HTTPException(
-            status_code= status.HTTP_401_UNAUTHORIZED,
-            detail="Wrong username or password!"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sai tên đăng nhập hoặc mật khẩu!"
         )
+
+    return {"status": "success", "id": str(user.id), "email": user.email, "is_admin": user.role == "admin"}
+
+
+
+@router.get("/me")
+def get_current_user_profile(userId: str = Cookie(None), db: Session = Depends(get_db)):
+    if not userId:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Chưa đăng nhập")
         
-        
-    return {"status": "success","id": str(user.id), "email": user.email, "is_admin": user.role == "admin"}        
+    user = db.query(User).filter(User.id == int(userId)).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy tài khoản")
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "role": user.role
+    }

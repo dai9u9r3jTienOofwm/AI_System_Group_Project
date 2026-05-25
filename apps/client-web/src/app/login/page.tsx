@@ -20,10 +20,9 @@ export default function LoginPage() {
   setError('');
 
   try {
-    // Đóng gói dữ liệu từ form gửi sang cho Python
-    const values = { 
-      email: username.trim(), 
-      password: password 
+    const values = {
+      username: username.trim(),
+      password: password
     };
 
     // 1. Gọi API đăng nhập bằng apiClient hướng sang Python Backend
@@ -48,11 +47,7 @@ export default function LoginPage() {
       document.cookie = `auth_role=${userRole}; path=/; max-age=86400; SameSite=Lax;`;
     }
 
-    // 3. ĐÃ SỬA: Điều hướng dựa vào cờ data.is_admin (kiểu Boolean) của Python trả về
-    const targetPath = data.is_admin === true ? '/admin' : '/';
-    
-    // Thực hiện chuyển trang
-    router.push(targetPath);
+    router.push('/');
     router.refresh();
 
   } catch (err: any) {

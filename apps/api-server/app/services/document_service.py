@@ -10,7 +10,7 @@ class DocumentService:
     def __init__(self, db: Session, client: minio_service.MinioService):
         self.db = db
         self.client = client
-    async def handle_upload(self, file: UploadFile, admin_id: int,document_id: str, object_name: str):
+    async def handle_upload(self, file: UploadFile, upload_by: str, document_id: str, object_name: str, topic: str = None):
         # 1. Lưu file vào MinIO
         await self.client.upload_file(
             object_name=object_name,
@@ -33,7 +33,8 @@ class DocumentService:
             status="queued",
             chunk_count = 0,
             error_message = None,
-            upload_id=admin_id 
+            uploaded_by=upload_by,
+            topic = topic
         )
         # 3. Gửi task cho Celery để xử lý nạp dữ liệu (OCR, Chunking, Embedding)
         process_document_task.delay(new_doc.document_id)
