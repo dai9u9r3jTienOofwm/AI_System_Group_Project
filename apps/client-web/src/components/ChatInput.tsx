@@ -42,7 +42,7 @@ export default function ChatInput({
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             if (input.trim() && !isLoading) {
-              handleSubmit(e);
+              handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
             }
           }
         }}

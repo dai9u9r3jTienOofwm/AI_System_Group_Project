@@ -156,7 +156,7 @@ export default function Sidebar({
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm" onClick={onClose} />
+        <div className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm" onClick={() => setIsOpen(false)} />
       )}
 
       <nav
@@ -174,13 +174,13 @@ export default function Sidebar({
             </div>
             <span className="text-section-title font-section-title text-text-emphasis tracking-tight">UET AI</span>
           </div>
-          <button onClick={onClose} className="md:hidden text-text-secondary hover:text-text-emphasis transition-colors cursor-pointer">
+          <button onClick={() => setIsOpen(false)} className="md:hidden text-text-secondary hover:text-text-emphasis transition-colors cursor-pointer">
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
         </div>
 
         <button
-          onClick={() => { onNew(); onClose(); }}
+          onClick={() => { onNew(); setIsOpen(false); }}
           className="w-full bg-primary-container text-black font-nav-link-active rounded-full py-3 px-4 flex items-center justify-center gap-2 mb-lg hover:scale-[1.02] active:scale-95 transition-transform duration-150 cursor-pointer"
         >
           <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>add_circle</span>

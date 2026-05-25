@@ -6,6 +6,7 @@ import { Menu, Bot, AlertCircle, Paperclip, Loader2 } from 'lucide-react';
 import MessageItem from '@/components/MessageItem';
 import Sidebar from '@/components/Sidebar';
 import DocumentPicker from '@/components/DocumentPicker';
+import ChatInput from '@/components/ChatInput';
 import { useConversations } from '@/hooks/useConversations';
 import type { Message } from '@/hooks/useConversations';
 
@@ -402,9 +403,7 @@ export default function ChatPage() {
               {messages.map(m => (
                 <MessageItem
                   key={m.id}
-                  role={m.role}
-                  content={m.content}
-                  sources={m.sources}
+                  message={m}
                 />
               ))}
               {isLoading && (
@@ -436,14 +435,16 @@ export default function ChatPage() {
               </button>
             </div>
           </div>
+        )}
 
         {/* Input Area (Fixed Footer Anchored) */}
         <div className="absolute bottom-0 left-0 right-0 px-lg pb-lg bg-gradient-to-t from-background via-background to-transparent pt-xl">
           <div className="max-w-4xl mx-auto flex flex-col gap-sm">
             <div className="flex justify-start mb-sm">
               <DocumentPicker
-                selectedIds={selectedDocIds}
-                onChangeIds={setSelectedDocIds}
+                selectedIds={attachedDocIds}
+                onChangeIds={setAttachedDocIds}
+                currentTopic={selectedTopic}
               />
             </div>
             
@@ -452,6 +453,9 @@ export default function ChatPage() {
               handleInputChange={(e) => setInput(e.target.value)}
               handleSubmit={handleFormSubmit}
               isLoading={isLoading}
+              selectedDocIds={attachedDocIds}
+              onChangeDocIds={setAttachedDocIds}
+              currentTopic={selectedTopic}
             />
             
             <p className="text-center text-micro font-micro text-text-secondary mt-2 opacity-70">

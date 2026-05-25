@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface Doc {
   id: string;
@@ -187,7 +187,7 @@ export default function DocumentPicker({ selectedIds, onChangeIds, currentTopic 
               className="inline-flex items-center gap-1 bg-surface-container border border-border-light text-text-emphasis text-small-base font-small-base px-3 py-1 rounded-full shadow-floating"
             >
               <span className="material-symbols-outlined text-[14px] text-text-secondary">description</span>
-              <span className="max-w-[140px] truncate">{doc.fileName}</span>
+              <span className="max-w-[140px] truncate">{doc.name}</span>
               <button
                 type="button"
                 onClick={() => toggle(doc.id)}
@@ -263,7 +263,7 @@ export default function DocumentPicker({ selectedIds, onChangeIds, currentTopic 
                     className="rounded bg-background border-border-light checked:bg-primary-container accent-primary-container shrink-0 w-4 h-4"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-body-base text-text-emphasis truncate">{doc.fileName}</p>
+                    <p className="text-sm font-body-base text-text-emphasis truncate">{doc.name}</p>
                     {doc.status && (
                       <p className="text-xs text-text-secondary capitalize">{doc.status}</p>
                     )}
@@ -271,13 +271,13 @@ export default function DocumentPicker({ selectedIds, onChangeIds, currentTopic 
                   <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-gray-800 mix-blend-overlay">
                     {uploadProgress}%
                   </span>
-                </div>
-                {uploadMessage && (
-                  <span className={`text-xs font-semibold ${uploadMessage.includes('Lỗi') || uploadMessage.includes('thất bại') ? 'text-red-500' : 'text-green-600'}`}>
-                    {uploadMessage}
-                  </span>
-                )}
-              </div>
+                  {uploadMessage && (
+                    <span className={`text-xs font-semibold ${uploadMessage.includes('Lỗi') || uploadMessage.includes('thất bại') ? 'text-red-500' : 'text-green-600'}`}>
+                      {uploadMessage}
+                    </span>
+                  )}
+                </label>
+              ))
             )}
           </div>
 
