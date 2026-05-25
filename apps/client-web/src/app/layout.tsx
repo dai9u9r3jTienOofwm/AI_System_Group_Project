@@ -1,13 +1,6 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
 import Providers from "./providers";
 import "./globals.css";
-
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ["latin", "vietnamese"],
-  weight: ["400", "600", "700"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "UET AI Chatbot",
@@ -24,7 +17,7 @@ export default function RootLayout({
       <head>
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
-      <body className={`${plusJakartaSans.className} h-screen w-screen overflow-hidden flex flex-col md:flex-row bg-background antialiased text-white`}>
+      <body className="h-screen w-screen overflow-hidden flex flex-col md:flex-row bg-background antialiased text-white">
         <Providers>{children}</Providers>
       </body>
     </html>
