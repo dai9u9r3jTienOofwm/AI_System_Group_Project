@@ -13,7 +13,7 @@ export default function AdminDashboardPage() {
       <div className="mx-auto w-full max-w-7xl space-y-10">
         <div className="space-y-2">
           <h1 className="text-3xl font-semibold tracking-tight text-white md:text-5xl">Dashboard</h1>
-          <p className="max-w-xl text-base text-slate-300">Chọn một khu vực để làm việc.</p>
+          <p className="max-w-[576px] text-base text-slate-300">Chọn một khu vực để làm việc.</p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

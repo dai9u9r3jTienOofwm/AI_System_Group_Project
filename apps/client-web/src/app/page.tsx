@@ -108,7 +108,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-950 overflow-hidden">
+    <>
       <Sidebar
         conversations={conversations}
         activeId={activeId}
@@ -122,49 +122,52 @@ export default function ChatPage() {
         onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="flex flex-col flex-1 min-w-0">
-        {/* Header */}
-        <header className="shrink-0 px-4 py-3 border-b border-gray-800 bg-gray-900 flex items-center justify-between z-10">
-          <div className="flex items-center gap-3 min-w-0">
+      {/* Main Content Canvas */}
+      <main className="flex-1 flex flex-col h-full bg-background relative overflow-hidden">
+        {/* Top App Bar (Mobile / Status) */}
+        <header className="flex justify-between items-center w-full px-lg h-16 sticky top-0 z-40 bg-background/90 backdrop-blur-md">
+          <div className="md:hidden flex items-center gap-sm">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden text-gray-500 hover:text-gray-800 transition-colors shrink-0"
+              className="text-text-secondary hover:text-text-emphasis transition-colors shrink-0 cursor-pointer"
               aria-label="Mở menu"
             >
               <Menu size={20} />
             </button>
-            <span className="font-semibold text-gray-100 truncate text-sm">
-              {activeConversation?.title ?? 'UET AI Assistant'}
-            </span>
+            <div className="w-6 h-6 ml-2 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container">
+              <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1", fontSize: "16px" }}>robot_2</span>
+            </div>
+            <span className="text-feature-heading font-feature-heading text-text-emphasis">UET AI</span>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="hidden md:flex text-feature-heading font-feature-heading text-text-emphasis tracking-tight">
+            {activeConversation?.title ?? 'Cuộc trò chuyện mới'}
+          </div>
+          <div className="flex items-center gap-xs text-small-base font-small-base text-text-secondary">
             <span
-              className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                isLoading ? 'bg-yellow-400 animate-pulse' : 'bg-green-500'
+              className={`w-2 h-2 rounded-full inline-block ${
+                isLoading ? 'bg-warning animate-pulse' : 'bg-primary-container'
               }`}
             />
-            <span className="text-xs text-gray-400 hidden sm:block">
+            <span className="hidden sm:inline">
               {isLoading ? 'Đang suy nghĩ...' : 'Sẵn sàng'}
             </span>
           </div>
         </header>
 
-        {/* Messages */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto bg-gray-950 scroll-smooth">
+        {/* Empty State / Messages */}
+        <div ref={scrollRef} className="flex-1 flex flex-col px-lg overflow-y-auto pb-40 scroll-smooth">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+            <div className="flex-1 flex flex-col items-center justify-center text-center">
+              <div className="w-16 h-16 rounded-full bg-[#f0f0f0] flex items-center justify-center mb-lg shadow-dialog">
                 <span className="text-3xl">🤖</span>
               </div>
-              <h2 className="text-xl font-semibold text-gray-100">Tôi có thể giúp gì cho bạn?</h2>
-              <p className="text-gray-400 mt-2 max-w-md text-sm leading-relaxed">
-                Hệ thống RAG đã sẵn sàng. Đặt câu hỏi dựa trên tài liệu đã được tải lên,
-                hoặc chọn tài liệu cụ thể bằng nút{' '}
-                <span className="font-medium text-blue-600">Tài liệu tham khảo</span>.
+              <h1 className="w-full text-section-title font-section-title text-text-emphasis mb-md tracking-tight">Tôi có thể giúp gì cho bạn?</h1>
+              <p className="w-full text-body-base font-body-base text-text-secondary max-w-[448px] mx-auto leading-relaxed">
+                Hệ thống RAG đã sẵn sàng. Đặt câu hỏi dựa trên tài liệu đã được tải lên, hoặc chọn tài liệu cụ thể bằng nút <span className="text-announcement cursor-pointer hover:underline">Tài liệu tham khảo</span>.
               </p>
             </div>
           ) : (
-            <div className="flex flex-col w-full pb-36">
+            <div className="flex flex-col w-full max-w-4xl mx-auto pb-8 pt-4">
               {messages.map(m => (
                 <MessageItem
                   key={m.id}
@@ -174,16 +177,14 @@ export default function ChatPage() {
                 />
               ))}
               {isLoading && (
-                <div className="flex w-full p-4 bg-gray-900">
-                  <div className="flex max-w-4xl mx-auto w-full gap-4 items-center">
-                    <div className="w-8 h-8 flex items-center justify-center rounded-sm bg-gray-700 shrink-0">
-                      <Bot size={20} className="text-blue-600" />
-                    </div>
-                    <div className="flex gap-1">
-                      <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce [animation-delay:0ms]" />
-                      <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce [animation-delay:150ms]" />
-                      <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce [animation-delay:300ms]" />
-                    </div>
+                <div className="flex w-full py-4 items-center gap-4">
+                  <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container shrink-0">
+                    <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>robot_2</span>
+                  </div>
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-text-secondary rounded-full animate-bounce [animation-delay:0ms]" />
+                    <span className="w-2 h-2 bg-text-secondary rounded-full animate-bounce [animation-delay:150ms]" />
+                    <span className="w-2 h-2 bg-text-secondary rounded-full animate-bounce [animation-delay:300ms]" />
                   </div>
                 </div>
               )}
@@ -193,12 +194,12 @@ export default function ChatPage() {
 
         {/* Error banner */}
         {error && (
-          <div className="shrink-0 mx-auto w-full max-w-4xl px-4 py-2">
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 flex justify-between items-center">
+          <div className="absolute bottom-32 left-0 right-0 mx-auto w-full max-w-4xl px-4 z-50">
+            <div className="bg-error-container border border-error text-on-error-container text-sm rounded-lg px-4 py-3 flex justify-between items-center shadow-dialog">
               <span>{error}</span>
               <button
                 onClick={() => setError(null)}
-                className="ml-4 font-bold hover:text-red-900"
+                className="ml-4 font-bold hover:text-white cursor-pointer"
               >
                 ✕
               </button>
@@ -206,27 +207,29 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Input area */}
-        <div className="shrink-0 w-full px-4 pb-4 pt-2 md:px-6 md:pb-6 bg-gradient-to-t from-gray-950 via-gray-950 to-transparent">
-          <div className="max-w-4xl mx-auto">
-            <div className="mb-2">
+        {/* Input Area (Fixed Footer Anchored) */}
+        <div className="absolute bottom-0 left-0 right-0 px-lg pb-lg bg-gradient-to-t from-background via-background to-transparent pt-xl">
+          <div className="max-w-4xl mx-auto flex flex-col gap-sm">
+            <div className="flex justify-start mb-sm">
               <DocumentPicker
                 selectedIds={selectedDocIds}
                 onChangeIds={setSelectedDocIds}
               />
             </div>
+            
             <ChatInput
               input={input}
               handleInputChange={(e) => setInput(e.target.value)}
               handleSubmit={handleFormSubmit}
               isLoading={isLoading}
             />
-            <p className="text-center text-xs text-gray-500 mt-2">
+            
+            <p className="text-center text-micro font-micro text-text-secondary mt-2 opacity-70">
               AI có thể mắc sai lầm. Hãy kiểm tra lại các thông tin quan trọng.
             </p>
           </div>
         </div>
-      </div>
-    </div>
+      </main>
+    </>
   );
 }

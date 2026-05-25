@@ -34,7 +34,7 @@ export default function IngestStatusPage() {
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(15,23,42,0.9),_rgba(2,6,23,1)_55%,_rgba(0,0,0,1)_100%)] px-6 py-10 text-slate-100 md:px-10">
       <h1 className="mb-8 text-3xl font-semibold text-white">Ingest Status</h1>
 
-      <div className="max-w-xl space-y-6 rounded-2xl border border-white/10 bg-slate-950/70 p-6 shadow-[0_0_40px_rgba(0,0,0,0.45)]">
+      <div className="max-w-[576px] space-y-6 rounded-2xl border border-white/10 bg-slate-950/70 p-6 shadow-[0_0_40px_rgba(0,0,0,0.45)]">
         <div className="flex items-center gap-3">
           <span className="text-slate-300 font-medium">Trạng thái:</span>
           <span className={`font-semibold capitalize ${statusColor}`}>{data?.status}</span>

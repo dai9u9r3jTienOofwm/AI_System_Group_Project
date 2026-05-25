@@ -68,7 +68,7 @@ export default function ClientGlobalSearch() {
   const hasResults = results.documents.length > 0;
 
   return (
-    <div ref={ref} className="relative w-full max-w-md">
+    <div ref={ref} className="relative w-full max-w-[448px]">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
         <input
