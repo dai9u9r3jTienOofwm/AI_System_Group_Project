@@ -110,7 +110,7 @@ graph TD
 - [`DESIGN.md`](DESIGN.md) — Thiết kế tổng quan hệ thống.
 
 ## Thành viên thực hiện
-- `Phạm Quang Tiến`
-- `Vũ Ngọc Sơn`
-- `Đỗ Duy Thành`
-- `Đỗ Khắc Phúc Thịnh`
+- Phạm Quang Tiến : 24022464
+- Đỗ Duy Thành : 24022452
+- Vũ Ngọc Sơn : 24022446
+- Đỗ Khắc Phúc Thịnh : 24022458
