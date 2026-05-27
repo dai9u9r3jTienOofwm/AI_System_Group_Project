@@ -229,12 +229,30 @@ export default function DocumentPicker({ selectedIds, onChangeIds, currentTopic 
         <div className="absolute bottom-full left-0 mb-3 w-80 bg-surface-container border border-border-gray rounded-xl shadow-dialog z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-border-gray flex items-center justify-between bg-panel-surface">
             <span className="text-sm font-body-bold text-text-emphasis">Chọn tài liệu tham khảo</span>
-            <button
-              onClick={() => setOpen(false)}
-              className="text-text-secondary hover:text-text-emphasis transition-colors cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[18px]">close</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleUpload}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="bg-primary hover:bg-primary-fixed text-on-primary px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                title={!currentTopic ? "Vui lòng chọn một Chủ đề (Topic) ở bối cảnh trước khi tải tài liệu!" : ""}
+              >
+                <span className="material-symbols-outlined text-[14px]">upload</span>
+                {isUploading ? 'Đang tải...' : 'Tải lên'}
+              </button>
+              <button
+                onClick={() => setOpen(false)}
+                className="text-text-secondary hover:text-text-emphasis transition-colors cursor-pointer flex items-center"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
           </div>
 
           <div className="max-h-64 overflow-y-auto bg-surface-container">
