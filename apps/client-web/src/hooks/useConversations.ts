@@ -6,7 +6,7 @@ export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  sources?: string[];
+  sources?: any[];
 }
 
 export interface Conversation {

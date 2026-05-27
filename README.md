@@ -25,7 +25,7 @@ cp .env_example .env
 
 ### Bước 2: Khởi động dự án bằng Docker
 ```bash
-docker compose up --build
+docker compose up -d
 ```
 
 ### Bước 3: Truy cập các dịch vụ và ứng dụng
@@ -76,7 +76,6 @@ graph TD
     RD -->|Xử lý| WK[Celery Worker]
     WK -->|Embedding| LLM((AI Model))
 ```
-## Đánh giá hệ thống
 
 ## Công nghệ được sử dụng
 
@@ -99,7 +98,11 @@ graph TD
 - `infra/nginx/`: Cấu hình Nginx API gateway (`nginx.conf`).
 
 - `docs/`: Tài liệu dự án và hướng dẫn mở rộng.
-
+## Đánh giá hệ thống
+- Hệ thống đã thực hiện được đầy đủ chức năng end-to-end, hoạt động tốt, xử lý được nhiều trường hợp (ví dụ như hỏi câu hỏi khác topic, tài liệu do một người dùng upload thì người dùng khác dùng RAG không thể biết được nó)
+- Giao diện User đơn giản, dễ dùng
+- Các metadata lưu trữ được đầy đủ thông tin giúp admin có thể theo dõi và quản lý người dùng, lịch sử chat người dùng và kho tri thức
+- RAG vẫn cần nhiều sự cải tiến hơn: giai đoạn ingestion vẫn hoạt động khá chậm với tài liệu có dung lượng lớn, chưa có đánh giá khả năng trả lời của RAG,...
 ## Tài liệu tham khảo
 
 - [`docs/nginx-local-gateway.md`](docs/nginx-local-gateway.md) — Hướng dẫn mở rộng Nginx gateway cho production (scale, TLS, healthcheck, log format).

@@ -29,15 +29,20 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------
 
 _SYSTEM_PROMPT = (
-    "You are an intelligent technical and coding assistant.\n\n"
+    "You are an intelligent technical and coding assistant working inside a topic-restricted system.\n\n"
+    "Current chat topic:\n"
+    "{topic}\n\n"
     "Instructions:\n"
-    "1. Use the provided Context below to explain general concepts, theories, and rules.\n"
-    "2. If the user provides specific code snippets, examples, or data directly in their Question, "
-    "you MUST analyze and evaluate that code using your own logical reasoning. Use the theoretical "
-    "knowledge from the Context to support your explanation.\n"
-    "3. Do NOT refuse to evaluate the user's code just because it is not explicitly present in the Context.\n"
-    "4. If the question asks for specific factual knowledge that is neither in the Context nor derivable "
-    "from standard coding logic, only then say \"I don't have enough information to answer this question\".\n\n"
+    "1. Answer questions that belong to the Current chat topic.\n"
+    "2. Use the provided Context below to explain general concepts, theories, rules, and document-specific details when relevant.\n"
+    "3. If the user provides specific code snippets, examples, filenames, or data directly in their Question, "
+    "you MUST analyze and evaluate them using your own logical reasoning. Use the theoretical knowledge from the Context when it helps.\n"
+    "4. Do NOT refuse to evaluate code or explain a programming concept just because the exact answer is not explicitly present in the Context.\n"
+    "5. If the question clearly belongs to a different topic than the Current chat topic, say exactly: "
+    "\"I don't have enough information to answer this question.\"\n"
+    "6. If the question asks for specific factual knowledge that is neither in the Context nor derivable "
+    "from standard technical/coding logic within the Current chat topic, only then say: "
+    "\"I don't have enough information to answer this question.\"\n\n"
     "When you use information from the Context, cite the source document filename and chunk index.\n\n"
     "Context:\n{context}\n\n"
     "Question: {question}\n\n"
@@ -118,13 +123,6 @@ def _build_context(chunks: list[dict[str, Any]]) -> str:
 
 
 def _build_sources(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Build a source-citation list from chunk metadata.
-
-    Each source dict contains ``document_id``, ``filename``,
-    ``chunk_index``, and ``preview`` (first 200 chars of text).
-
-    Returns an empty list when *chunks* is empty.
-    """
     sources: list[dict[str, Any]] = []
     for chunk in chunks:
         metadata = chunk.get("metadata", {})
@@ -140,6 +138,9 @@ def _build_sources(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "filename": filename,
                 "chunk_index": chunk_index,
                 "preview": preview,
+                # 🌟 Add these URLs back
+                "content_url": f"/v1/documents/{document_id}/content",
+                "chunk_url": f"/v1/documents/{document_id}/chunk-preview?chunk_index={chunk_index}",
             }
         )
     return sources
@@ -153,57 +154,29 @@ def _build_sources(chunks: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def generate_answer(
     question: str,
     chunks: list[dict[str, Any]],
+    topic: str | None = None,
+    allow_general_topic_knowledge: bool = False,
 ) -> dict[str, Any]:
-    """Generate an answer using retrieved context chunks.
-
-    Parameters
-    ----------
-    question : str
-        The user's query text (already validated as non-empty by the
-        caller / Pydantic schema).
-    chunks : list[dict]
-        Retrieved chunks from ``retrieval_service.retrieve()``.
-        Each dict must have ``text``, ``score``, ``metadata`` keys.
-
-    Returns
-    -------
-    dict
-        A dict with keys:
-
-        - **answer** (str) — the generated answer text or a guardrail
-          message.
-        - **sources** (list[dict]) — source citations built from chunk
-          metadata.  Each source dict contains ``document_id``,
-          ``filename``, ``chunk_index``, ``preview``.
-
-    Behaviour by scenario
-    ---------------------
-    - **No chunks**: returns the guardrail message ``_NO_CONTEXT_MESSAGE``
-      and an empty sources list.  The LLM is **not** invoked.
-    - **LLM unavailable**: catches ``RuntimeError`` from ``_get_llm()``
-      and returns the guardrail message.  This is **not** a hard-coded
-      fake answer — it transparently tells the user the system cannot
-      answer.
-    - **LLM invocation fails**: logs the exception and returns a generic
-      error message.
-    - **Success**: returns the LLM-generated answer with source citations.
     """
-    # ------------------------------------------------------------------
-    # Guardrail: no context → no LLM call
-    # ------------------------------------------------------------------
-    if not chunks:
+    Generate an answer using retrieved context chunks.
+
+    Behaviour:
+    - If chunks exist: use them as context and answer normally.
+    - If chunks are empty but allow_general_topic_knowledge=True:
+      still call LLM so it can answer general questions inside the current topic.
+    - If chunks are empty and allow_general_topic_knowledge=False:
+      return no-context. This is for file-specific/document-specific questions.
+    """
+
+    if not chunks and not allow_general_topic_knowledge:
         logger.info(
-            "generate_answer() called with empty chunks — "
-            "returning guardrail message (no LLM call).",
+            "generate_answer() called with empty chunks and general knowledge disabled."
         )
         return {
             "answer": _NO_CONTEXT_MESSAGE,
             "sources": [],
         }
 
-    # ------------------------------------------------------------------
-    # Obtain LLM (may raise RuntimeError)
-    # ------------------------------------------------------------------
     try:
         llm = _get_llm()
     except RuntimeError:
@@ -216,25 +189,42 @@ def generate_answer(
             "sources": [],
         }
 
-    # ------------------------------------------------------------------
-    # Build prompt and invoke LLM
-    # ------------------------------------------------------------------
-    context_str = _build_context(chunks)
-    prompt = _SYSTEM_PROMPT.format(context=context_str, question=question)
+    context_str = (
+        _build_context(chunks)
+        if chunks
+        else "No retrieved context is available for this question."
+    )
+
+    prompt = _SYSTEM_PROMPT.format(
+        context=context_str,
+        question=question,
+        topic=topic or "Unknown",
+    )
 
     try:
         logger.debug(
-            "Invoking LLM with %d context chunks (question length=%d)",
+            "Invoking LLM with %d context chunks, topic=%r, allow_general_topic_knowledge=%s",
             len(chunks),
-            len(question),
+            topic,
+            allow_general_topic_knowledge,
         )
+
         response = llm.invoke(prompt)
+
         answer: str = (
             response.content
             if hasattr(response, "content")
             else str(response)
         )
-        logger.debug("LLM response received (length=%d)", len(answer))
+
+        answer = (answer or "").strip()
+
+        if not answer:
+            return {
+                "answer": _NO_CONTEXT_MESSAGE,
+                "sources": [],
+            }
+
     except Exception:
         logger.exception("LLM invocation failed unexpectedly")
         return {
@@ -245,17 +235,15 @@ def generate_answer(
             "sources": [],
         }
 
-    # ------------------------------------------------------------------
-    # Build source citations
-    # ------------------------------------------------------------------
-    sources = _build_sources(chunks)
+    # Nếu LLM từ chối thì không gắn citation rác.
+    normalized = answer.lower()
+    if "i don't have enough information" in normalized:
+        return {
+            "answer": _NO_CONTEXT_MESSAGE,
+            "sources": [],
+        }
 
-    logger.info(
-        "generate_answer() — answer length=%d, %d sources",
-        len(answer),
-        len(sources),
-    )
     return {
         "answer": answer,
-        "sources": sources,
+        "sources": _build_sources(chunks) if chunks else [],
     }

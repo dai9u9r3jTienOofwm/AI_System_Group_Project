@@ -31,6 +31,7 @@ from qdrant_client.http.models import (
     MatchValue,
     PointStruct,
     VectorParams,
+    MatchAny
 )
 from qdrant_client.models import MatchText
 
@@ -450,16 +451,25 @@ def search_similar(
     topic: str | None = None,
     uploaded_by: str | None = None,
     filename: str | None = None,
+    document_ids: list[str] | tuple[str, ...] | None = None,
     top_k: int = 5,
 ) -> list[dict[str, Any]]:
     """
     Search Qdrant for chunks relevant to the question.
 
-    Rules:
-    - If a filename is provided or detected in the question:
-      retrieve by metadata.filename directly.
-    - Otherwise:
-      run semantic vector search.
+    Priority:
+    1. If document_ids are provided:
+       search only inside attached documents.
+    2. If filename is provided or detected:
+       retrieve chunks by metadata filename.
+    3. Otherwise:
+       run semantic vector search.
+
+    Security / correctness:
+    - Always enforce uploaded_by access control.
+    - Always enforce topic when topic is provided.
+    - If attached documents do not belong to the current topic,
+      retrieval returns 0 chunks, so the LLM will not answer.
     """
 
     if not question or not question.strip():
@@ -468,27 +478,205 @@ def search_similar(
 
     safe_top_k = max(1, min(int(top_k or 5), 20))
 
+    clean_topic = _normalise_optional_str(topic)
     clean_filename = (
         _normalise_optional_str(filename)
         or extract_requested_filename(question)
     )
 
-    # Critical rule:
-    # filename-specific question must not use semantic search.
-    if clean_filename:
-        return get_chunks_by_filename(
-            clean_filename,
-            uploaded_by=uploaded_by,
+    clean_document_ids = list(
+        dict.fromkeys(
+            str(doc_id).strip()
+            for doc_id in (document_ids or [])
+            if str(doc_id).strip()
+        )
+    )
+
+    client = get_client()
+    ensure_collection()
+
+    def _build_strict_filter(
+        *,
+        topic_value: str | None = None,
+        filename_value: str | None = None,
+        doc_ids: list[str] | None = None,
+    ) -> Filter:
+        """
+        Build strict Qdrant filter.
+
+        Unlike _build_chat_filter(), this function can apply topic,
+        filename and document_id together.
+        """
+        must_conditions: list[Any] = []
+
+        if topic_value:
+            must_conditions.append(
+                FieldCondition(
+                    key="metadata.topic",
+                    match=MatchValue(value=topic_value),
+                )
+            )
+
+        if filename_value:
+            must_conditions.append(
+                FieldCondition(
+                    key="metadata.filename",
+                    match=MatchValue(value=filename_value),
+                )
+            )
+
+        if doc_ids:
+            if len(doc_ids) == 1:
+                must_conditions.append(
+                    FieldCondition(
+                        key="metadata.document_id",
+                        match=MatchValue(value=doc_ids[0]),
+                    )
+                )
+            else:
+                # OR condition:
+                # metadata.document_id == id1 OR metadata.document_id == id2 ...
+                must_conditions.append(
+                    Filter(
+                        should=[
+                            FieldCondition(
+                                key="metadata.document_id",
+                                match=MatchValue(value=doc_id),
+                            )
+                            for doc_id in doc_ids
+                        ]
+                    )
+                )
+
+        # Access control:
+        # admin document OR current user's own document
+        must_conditions.append(_access_control_condition(uploaded_by))
+
+        return Filter(must=must_conditions)
+
+    def _scroll_by_filter(
+        *,
+        qdrant_filter: Filter,
+        limit: int = DEFAULT_FILENAME_SCROLL_LIMIT,
+        max_chunks: int = 500,
+    ) -> list[dict[str, Any]]:
+        """
+        Retrieve chunks directly by metadata filter.
+        Used for attached documents or filename-specific questions.
+        """
+        output: list[dict[str, Any]] = []
+        next_offset = None
+
+        while True:
+            batch_limit = min(limit, max_chunks - len(output))
+
+            if batch_limit <= 0:
+                break
+
+            points, next_offset = client.scroll(
+                collection_name=settings.QDRANT_COLLECTION,
+                scroll_filter=qdrant_filter,
+                limit=batch_limit,
+                offset=next_offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+
+            if not points:
+                break
+
+            for point in points:
+                payload = point.payload or {}
+                item = _payload_to_result(payload, score=1.0)
+
+                if not item:
+                    continue
+
+                item["point_id"] = str(point.id)
+                output.append(item)
+
+            if next_offset is None:
+                break
+
+        output.sort(
+            key=lambda x: (
+                str(x.get("metadata", {}).get("filename", "")),
+                int(x.get("metadata", {}).get("chunk_index", 0) or 0),
+            )
+        )
+
+        return output
+
+    # ================================================================
+    # Case 1: Attached document retrieval
+    # ================================================================
+    if clean_document_ids:
+        strict_filter = _build_strict_filter(
+            topic_value=clean_topic,
+            filename_value=clean_filename,
+            doc_ids=clean_document_ids,
+        )
+
+        output = _scroll_by_filter(
+            qdrant_filter=strict_filter,
             limit=DEFAULT_FILENAME_SCROLL_LIMIT,
             max_chunks=500,
         )
 
+        logger.info(
+            "Attached document retrieval: topic=%s uploaded_by=%s filename=%s document_ids=%s chunks=%d",
+            clean_topic,
+            uploaded_by,
+            clean_filename,
+            clean_document_ids,
+            len(output),
+        )
+
+        print(
+            f"👉 Qdrant attached-doc retrieval trả về {len(output)} chunks "
+            f"cho document_ids={clean_document_ids}, topic={clean_topic}, filename={clean_filename}"
+        )
+
+        return output[:500]
+
+    # ================================================================
+    # Case 2: Filename-specific retrieval
+    # ================================================================
+    if clean_filename:
+        strict_filter = _build_strict_filter(
+            topic_value=clean_topic,
+            filename_value=clean_filename,
+            doc_ids=None,
+        )
+
+        output = _scroll_by_filter(
+            qdrant_filter=strict_filter,
+            limit=DEFAULT_FILENAME_SCROLL_LIMIT,
+            max_chunks=500,
+        )
+
+        logger.info(
+            "Filename retrieval: topic=%s uploaded_by=%s filename=%s chunks=%d",
+            clean_topic,
+            uploaded_by,
+            clean_filename,
+            len(output),
+        )
+
+        print(
+            f"👉 Qdrant filename retrieval trả về {len(output)} chunks "
+            f"cho filename={clean_filename}, topic={clean_topic}, uploaded_by={uploaded_by}"
+        )
+
+        return output[:500]
+
+    # ================================================================
+    # Case 3: Normal semantic retrieval
+    # ================================================================
     embeddings_model = get_embeddings()
-    client = get_client()
-    ensure_collection()
 
     chat_filter = _build_chat_filter(
-        topic=topic,
+        topic=clean_topic,
         uploaded_by=uploaded_by,
         filename=None,
     )
@@ -516,7 +704,7 @@ def search_similar(
 
     logger.info(
         "Semantic retrieval: topic=%s uploaded_by=%s top_k=%d chunks=%d",
-        topic,
+        clean_topic,
         uploaded_by,
         safe_top_k,
         len(output),

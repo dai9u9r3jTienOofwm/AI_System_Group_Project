@@ -25,6 +25,7 @@ def retrieve(
     topic: str | None = None,
     uploaded_by: str | None = None,
     filename: str | None = None,
+    document_ids: list[str] | None = None,
     top_k: int = 5,
 ) -> list[dict[str, Any]]:
     if not question or not question.strip():
@@ -42,6 +43,7 @@ def retrieve(
             topic=None if requested_filename else topic,
             uploaded_by=uploaded_by,
             filename=requested_filename,
+            document_ids = document_ids,
             top_k=top_k,
         )
 

@@ -70,12 +70,26 @@ class ChatRequest(BaseModel):
 
 
 class Source(BaseModel):
-    """A single source citation for a generated answer (Stage 10)."""
+    """A single source citation for a generated answer (Stage 10).
+    
+    Includes URLs to fetch full file content and chunk preview from backend.
+    Frontend can use these URLs to display evidence/proof of citations.
+    """
 
     document_id: str = Field(..., description="UUID of the source document.")
     filename: str = Field(..., description="Original filename of the source document.")
     chunk_index: int = Field(..., description="0-based chunk index within the source document.")
-    preview: str = Field(..., description="Short text preview of the chunk content.")
+    preview: str = Field(..., description="Short text preview of the chunk content (max 200 chars).")
+    
+    # ✨ Stage 10 Citation URLs - for frontend to fetch evidence
+    content_url: str = Field(
+        ...,
+        description="URL to fetch full file content: GET /v1/documents/{document_id}/content"
+    )
+    chunk_url: str = Field(
+        ...,
+        description="URL to fetch specific chunk: GET /v1/documents/{document_id}/chunk-preview?chunk_index={chunk_index}"
+    )
 
 
 class ChatResponse(BaseModel):

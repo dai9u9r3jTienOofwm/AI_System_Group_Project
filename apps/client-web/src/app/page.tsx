@@ -76,6 +76,7 @@ export default function ChatPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const savedSessionIds = useRef<Set<string>>(new Set());
+  const shouldClearDocsRef = useRef<boolean>(false);  // 🌟 Flag to clear docs on next submit
 
   const fetchTopics = useCallback(async () => {
     setTopicsLoading(true);
@@ -247,6 +248,16 @@ export default function ChatPage() {
       return;
     }
 
+    // 🌟 FIX: Clear docs from PREVIOUS message (if any)
+    // This way they stay visible through current Q&A cycle
+    if (shouldClearDocsRef.current) {
+      setAttachedDocIds([]);
+      shouldClearDocsRef.current = false;
+    }
+
+    // Save current docs before any state changes
+    const currentDocIds = attachedDocIds;
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -283,7 +294,7 @@ export default function ChatPage() {
         body: JSON.stringify({
           question,
           topic: selectedTopic,
-          document_ids: attachedDocIds,
+          document_ids: currentDocIds,  // 🌟 Use saved document_ids from before clearing
           user_id: userId,
         }),
       });
@@ -307,8 +318,9 @@ export default function ChatPage() {
       } as Message;
 
       updateMessages(activeId, [...updatedMessages, assistantMessage]);
-
-      setAttachedDocIds([]);
+      
+      // 🌟 Mark to clear docs on next form submit
+      shouldClearDocsRef.current = true;
     } catch (err) {
       console.error('Lỗi khi gửi câu hỏi:', err);
       setError(

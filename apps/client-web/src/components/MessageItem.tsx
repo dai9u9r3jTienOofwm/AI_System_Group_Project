@@ -5,11 +5,15 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 import type { Message } from '@/hooks/useConversations';
+import SourceCitation from './SourceCitation';
+import type { Source } from './SourceCitation'; 
 
 interface MessageProps {
-  message: Message;
+  message: Omit<Message, 'sources'> & {
+    // 🌟 2. Ép lại kiểu trường sources thành mảng Object thay vì string[] của hook cũ
+    sources?: Source[]; 
+  };
 }
-
 export default function MessageItem({ message }: MessageProps) {
   const { role, content, sources } = message;
   
@@ -77,26 +81,9 @@ export default function MessageItem({ message }: MessageProps) {
             </button>
           )}
 
-          {/* 🌟 HIỂN THỊ NGUỒN TÀI LIỆU TRÍCH DẪN SÁNG MÀU HƠN */}
+          {/* ✨ Stage 10 Citation Feature: New SourceCitation component */}
           {!isUser && sources && sources.length > 0 && (
-            <div className="mt-6 pt-4 border-t border-border-gray/50">
-              <p className="flex items-center gap-2 text-sm font-small-bold text-text-secondary mb-3 uppercase tracking-wider">
-                <span className="material-symbols-outlined text-[16px]">menu_book</span> Nguồn tài liệu:
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {sources.map((source: any, index: number) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-variant/50 border border-border-gray rounded-md text-xs text-text-secondary hover:bg-surface-variant hover:text-text-emphasis transition-colors cursor-default"
-                    title={source.snippet}
-                  >
-                    <span className="font-body-bold text-primary-fixed-dim">[{index + 1}]</span>
-                    <span>{source.fileName}</span>
-                    {source.pageNumber && <span className="opacity-70">(Trang {source.pageNumber})</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
+            <SourceCitation sources={sources} />
           )}
         </div>
       </div>
