@@ -53,8 +53,7 @@ const navItems: NavItemEntry[] = [
     ]
   },
   { icon: Users, label: 'Quản lý Người dùng', path: '/dashboard/users' },
-  { icon: Users, label: 'Quản lý đoạn chat', path: '/dashboard/chat_session'},
-  { icon: Settings, label: 'Cấu hình', path: '/dashboard/settings' },
+  { icon: Users, label: 'Quản lý đoạn chat', path: '/dashboard/chat_session'}
 ];
 
 export default function Sidebar() {
